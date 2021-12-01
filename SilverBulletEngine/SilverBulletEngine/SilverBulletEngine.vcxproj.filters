@@ -18,5 +18,16 @@
     <ClCompile Include="SilverBulletEngine.cpp">
       <Filter>源文件</Filter>
     </ClCompile>
+    <ClCompile Include="WorkQueue.c">
+      <Filter>源文件</Filter>
+    </ClCompile>
+  </ItemGroup>
+  <ItemGroup>
+    <ClInclude Include="WorkQueue.h">
+      <Filter>头文件</Filter>
+    </ClInclude>
+  </ItemGroup>
+  <ItemGroup>
+    <None Include="packages.config" />
   </ItemGroup>
 </Project>
