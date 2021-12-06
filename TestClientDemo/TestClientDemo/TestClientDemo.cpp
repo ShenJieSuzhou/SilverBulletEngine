@@ -13,10 +13,45 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <string>
-
+#include <thread>
+#include <Windows.h>
+#include <cstdio>
 
 #pragma comment (lib, "Ws2_32.lib")
 #define DEFAULT_BUFLEN 256
+
+SOCKET client;
+sockaddr_in sai_client;
+
+struct mPoint
+{
+	int x;
+	int y;
+};
+
+// Message
+struct uMsg
+{
+	int type;
+	char name[64];
+	char text[1024]; // text msg
+	mPoint *m_point;
+};
+
+
+void recvMessage()
+{
+	while (1) {
+		uMsg msg;
+		int ret_recv = recv(client, (char*)&msg, sizeof(msg), 0);
+		if (ret_recv <= 0) {
+			std::cout << "recv failed: "<< GetLastError() << std::endl;
+			break;
+		}
+
+		std::cout << msg.name << ": " << msg.text << std::endl;
+	}
+}
 
 int main()
 {
@@ -26,13 +61,15 @@ int main()
 	WSADATA wsaData;
 
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (iResult != NO_ERROR) {
+	if (iResult != NO_ERROR) 
+	{
 		std::cout << "WSAStartup Failed with error: " << iResult << std::endl;
 		return 1;
 	}
 
 	SOCKET ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (ConnectSocket == INVALID_SOCKET) {
+	if (ConnectSocket == INVALID_SOCKET) 
+	{
 		std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
 		WSACleanup();
 		return 1;
@@ -41,73 +78,72 @@ int main()
 	sockaddr_in addrServer;
 	addrServer.sin_family = AF_INET;
 	InetPton(AF_INET, "127.0.0.1", &addrServer.sin_addr.s_addr);
-	addrServer.sin_port = htons(6666);
+	addrServer.sin_port = htons(5555);
 	memset(&(addrServer.sin_zero), '\0', 8);
 
 	std::cout << "Connecting..." << std::endl;
 	iResult = connect(ConnectSocket, (SOCKADDR *)&addrServer, sizeof(addrServer));
-	if (iResult == SOCKET_ERROR) {
+	if (iResult == SOCKET_ERROR) 
+	{
 		closesocket(ConnectSocket);
 		std::cout << "Unable to connect to server: " << WSAGetLastError() << std::endl;
 		WSACleanup();
 		return 1;
 	}
 
-
-	char filename[DEFAULT_BUFLEN] = { 0 };
-	std::cout << "Name of file: ";
-	std::cin.getline(filename, DEFAULT_BUFLEN, '\n');
-
-	const char *sendbuf = filename;
-	char recvbuf[DEFAULT_BUFLEN];
-	int recvbuflen = DEFAULT_BUFLEN;
+	// input username
+	uMsg msg;
+	msg.type = 1;
+	std::string name;
+	getline(std::cin, name);
+	strncpy_s(msg.name, sizeof(msg.name), name.c_str(), 64);
+	strncpy_s(msg.text, sizeof(msg.text), "", 512);
+	int error_send;
 
 	// Send file name
-	iResult = send(ConnectSocket, sendbuf, (int)strlen(sendbuf), 0);
+	iResult = send(ConnectSocket, (char*)&msg, sizeof(msg), 0);
 	if (iResult == SOCKET_ERROR) {
 		std::cout << "Send failed with error: " << WSAGetLastError() << std::endl;
 		WSACleanup();
 		return 1;
 	}
 
-	do {
-		iResult = recv(ConnectSocket, recvbuf, recvbuflen, 0);
-		if (iResult > 0) {
-			std::string size;
-			for (int i = 0; i < iResult; i++) size += recvbuf[i];
-
-			if (size == "-1") {
-				std::cout << "No file named \"" << filename << "\"" << std::endl;
-			}
-			else {
-				std::cout << "The size of file \"" << filename << "\" is: " << size << std::endl;
-			}
-		}
-		else if (iResult == 0) {
-			std::cout << "Connection closed\n" << std::endl;
-		}
-		else
-		{
-			printf("recv failed with error: %d\n", WSAGetLastError());
-		}
-	
-	} while (iResult > 0);
-
-
-	// shutdown the connection
-	iResult = shutdown(ConnectSocket, SD_SEND);
-	if (iResult == SOCKET_ERROR) {
-		printf("shutdown failed with error: %d\n", WSAGetLastError());
-		closesocket(ConnectSocket);
-		WSACleanup();
-		return 1;
+	// recv server info
+	HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
+	if (!h_recvMes) {
+		std::cout << "Create thread failed : " << GetLastError() << std::endl;
 	}
 
-	// cleanup
-	closesocket(ConnectSocket);
-	WSACleanup();
+	// send msg
+	while (1)
+	{
+		std::string content;
+		getline(std::cin, content);
 
-	return 1;
+		if (content == "quit") {
+			msg.type = 2;
+			send(client, (char*)&msg, sizeof(msg), 0);
+			error_send = GetLastError();
+			if (error_send != 0) {
+				std::cout << "send failed:" << error_send << std::endl;
+			}
+			closesocket(client);
+			WSACleanup();
+			return 0;
+		}
+		
+		msg.type = 3;
+		strncpy_s(msg.text, sizeof(msg.text), content.c_str(), 512);
+		send(client, (char*)&msg, sizeof(msg), 0);
+		error_send = GetLastError();
+		if (error_send != 0)
+		{
+			std::cout << "send failed: " << error_send << std::endl;
+		}
+	}
+
+	getchar();
+	return 0;
 }
 
 

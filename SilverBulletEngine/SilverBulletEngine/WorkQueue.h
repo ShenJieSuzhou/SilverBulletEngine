@@ -1,4 +1,6 @@
 #pragma once
+
+#define HAVE_STRUCT_TIMESPEC
 #ifndef WORKQUEUE_H
 #define WORKQUEUE_H
 

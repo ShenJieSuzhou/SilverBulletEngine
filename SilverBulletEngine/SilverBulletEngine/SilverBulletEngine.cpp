@@ -5,22 +5,28 @@
 
 #define WIN32_LEAN_AND_MEAN
 
-#include <sys/types.h>
-#include <winsock2.h>
-#include <ws2tcpip.h>
-
-#include <stdlib.h>
-#include <stdio.h>
-#include <fcntl.h>
-#include <errno.h>
 #include <iostream>
-#include <string.h>
-#include <fstream>
-#include <event.h>
-#include <signal.h>
-#include <stdarg.h>
+//#include <sys/types.h>
+#include <winsock2.h>
+//#include <winsock.h>
+#include <ws2tcpip.h>
+#include <Windows.h>
+#include <thread>
+//#include <cstdio>
 
-#include "WorkQueue.h"
+//#include <stdlib.h>
+//#include <stdio.h>
+//#include <fcntl.h>
+#include <errno.h>
+//#include <string.h>
+//#include <fstream>
+//#include <event.h>
+//#include <signal.h>
+//#include <stdarg.h>
+
+//#include "WorkQueue.h"
+
+//using namespace std;
 
 #define SERVER_PORT 5555
 
@@ -36,139 +42,163 @@
 	fprintf(stderr, "%s:%d: %s():\t", __FILE__, __LINE__, __FUNCTION__);\
 }
 
-
-//#pragma comment (lib, "Ws2_32.lib")
-//#define DEFAULT_BUFLEN 256
+#pragma comment (lib, "Ws2_32.lib")
 
 
-//int main()
-//{
-//	//std::cout << "****************\n*    SERVER    *\n****************\n\n";
-//	//
-//
-//	//char str[INET_ADDRSTRLEN];
-//
-//	//// Initialize Winsock
-//	//WSADATA wsaData;
-//	//int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-//	//if (iResult != NO_ERROR) {
-//	//	std::cout << "WSAStartup failed with error:" << iResult << std::endl;
-//	//	return 1;
-//	//}
-//
-//	//// Create a socket to listening the incoming connection requests
-//	//SOCKET ListenSocket, ClientSocket;
-//	//ListenSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-//	//if (ListenSocket == INVALID_SOCKET) {
-//	//	std::cout << "Socket failed with error: " << WSAGetLastError() << std::endl;
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//
-//
-//	//sockaddr_in addrServer;
-//	//addrServer.sin_family = AF_INET;
-//	//InetPton(AF_INET, "127.0.0.1", &addrServer.sin_addr.s_addr);
-//	//addrServer.sin_port = htons(6666);
-//	//memset(&(addrServer.sin_zero), '\0', 8);
-//
-//	//// Bind socket
-//	//if (bind(ListenSocket, (SOCKADDR *)& addrServer, sizeof(addrServer)) == SOCKET_ERROR) {
-//	//	std::cout << "Bind failed with error: " << WSAGetLastError() << std::endl;
-//	//	closesocket(ListenSocket);
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//	//
-//
-//	//// Listen for incoming connection
-//	//if (listen(ListenSocket, 5) == SOCKET_ERROR){
-//	//	std::cout << "Listen failed with error: " << WSAGetLastError() << std::endl;
-//	//	closesocket(ListenSocket);
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//
-//	//// Accept a client socket
-//	//ClientSocket = accept(ListenSocket, NULL, NULL);
-//	//if (ClientSocket == INVALID_SOCKET) {
-//	//	std::cout << "Accept failed with error: " << WSAGetLastError() << std::endl;
-//	//	closesocket(ListenSocket);
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//
-//	//// Variables for receive
-//	//int iSendResult;
-//	//char recvbuf[DEFAULT_BUFLEN];
-//	//int recvbuflen = DEFAULT_BUFLEN;
-//
-//	//// Receive data
-//	//iResult = recv(ClientSocket, recvbuf, recvbuflen, 0);
-//	//if (iResult > 0) {
-//	//	std::string filename;
-//
-//	//	for (int i = 0; i < iResult; i++){
-//	//		filename += recvbuf[i];
-//	//	}
-//
-//	//	//std::fstream file;
-//	//	//file.open(filename, std::ios::in | std::ios::binary);
-//
-//	//	//file.seekg(0, std::ios::end);
-//	//	//int fileSize = file.tellg();
-//	//	//file.close();
-//	//	std::cout << "File name: " << filename << std::endl;
-//
-//
-//	//	std::string temp = filename;
-//	//	char tempc[DEFAULT_BUFLEN];
-//	//	int i = 0;
-//	//	while (temp[i] != '\0')
-//	//	{	
-//	//		tempc[i] = temp[i];
-//	//		i++;
-//	//	}
-//	//	tempc[i] = '\0';
-//
-//	//	const char* sendbuf = tempc;
-//
-//	//	// send file size to client
-//	//	iSendResult = send(ClientSocket, sendbuf, (int)strlen(sendbuf), 0);
-//	//	if (iSendResult == SOCKET_ERROR) {
-//	//		std::cout << "Send failed with error: " << WSAGetLastError() << std::endl;
-//	//		closesocket(ClientSocket);
-//	//		WSACleanup();
-//	//		return 1;
-//	//	}
-//	//}
-//	//else if (iResult == 0) {
-//	//	std::cout << "Connection closing... \n" << std::endl;
-//	//}
-//	//else {
-//	//	std::cout << "Recieve failed with error: " << WSAGetLastError() << std::endl;
-//	//	closesocket(ClientSocket);
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//
-//	//std::cout << "Connection closing...\n" << std::endl;
-//
-//	////Shutdown the connection since we're done
-//	//iResult = shutdown(ClientSocket, SD_SEND);
-//	//if (iResult == SOCKET_ERROR) {
-//	//	printf("shutdown failed with error: %d\n", WSAGetLastError());
-//	//	closesocket(ClientSocket);
-//	//	WSACleanup();
-//	//	return 1;
-//	//}
-//
-//	//// cleanup
-//	//closesocket(ClientSocket);
-//	//WSACleanup();
-//
-//	return 0;
-//}
+#pragma region  LogicDemo1
+ 
+struct mPoint
+{
+	int x; 
+	int y;
+};
+
+// Message
+struct uMsg
+{
+	int type;
+	char name[64];
+	char text[1024]; // text msg
+	mPoint *m_point;
+};
+
+// Client
+struct clientInfo 
+{
+	SOCKET client;
+	sockaddr_in saddr;
+	uMsg msg;
+};
+
+// client chain node
+typedef struct userClientNode
+{
+	clientInfo cInfo;
+	userClientNode *next;
+} *ucnode_t;
+
+userClientNode *listHead;
+userClientNode *lp;
+
+#pragma endregion
+
+
+#pragma region chain node logic
+
+// Insert Client to chain
+userClientNode *insertNode(userClientNode *head, SOCKET client, sockaddr_in addr, uMsg msg)
+{
+	userClientNode *newNode = new userClientNode();
+	newNode->cInfo.client = client;
+	newNode->cInfo.saddr = addr;
+	newNode->cInfo.msg = msg;
+	userClientNode *p = head;
+
+	if (p == nullptr)
+	{	
+		head = newNode;
+	}
+	else {
+		while (p->next != nullptr)
+		{
+			p = p->next;
+		}
+		p->next = newNode;
+	}
+
+	return head;
+}
+
+// Delete node 
+userClientNode *deleteNode(userClientNode *head, SOCKET client)
+{
+	userClientNode *p = head;
+	if (p == nullptr) 
+	{
+		return head;
+	}
+
+	if (p->cInfo.client == client)
+	{
+		head = p->next;
+		delete p;
+		return head;
+	}
+
+	while (p->next != nullptr && p->next->cInfo.client != client)
+	{
+		p = p->next;
+	}
+
+	if (p->next == nullptr)
+	{
+		return head;
+	}
+
+	userClientNode *deleteNode = p->next;
+	p->next = deleteNode->next;
+	delete deleteNode;
+	return head;
+}
+
+// Recv msg from server
+void recvMessage(PVOID pParam)
+{
+	clientInfo *cInfo = (clientInfo *)pParam;
+
+	while (1) {
+		// accept message from client
+		uMsg msg;
+		int len_client = sizeof(sockaddr);
+		int ret_recv = recv(cInfo->client, (char*)&msg, sizeof(msg), 0);
+
+		if (ret_recv <= 0)
+		{
+			std::cout << msg.name << "Disconnect：" << GetLastError() << std::endl;
+			break;
+		}
+
+		cInfo->msg = msg;
+
+		char arr_ip[20];
+		inet_ntop(AF_INET, &cInfo->saddr.sin_addr, arr_ip, 16);
+
+		// Process message
+		switch (cInfo->msg.type)
+		{
+		case 1:
+			// Insert data to chain 
+			insertNode(listHead, cInfo->client, cInfo->saddr, cInfo->msg);
+			std::cout << "[" << arr_ip << ":" << ntohs(cInfo->saddr.sin_port) << "]" << msg.name << ":" << "--- Login---" << std::endl;
+			break;
+		case 2:
+			deleteNode(listHead, cInfo->client);
+			std::cout << "[" << arr_ip << ":" << ntohs(cInfo->saddr.sin_port) << "]" << msg.name << ":" << "--- Login Out---" << std::endl;
+			break;
+		case 3:
+			std::cout << "[" << arr_ip << ":" << ntohs(cInfo->saddr.sin_port) << "]" << msg.name << ":" << cInfo->msg.text << std::endl;
+			lp = listHead;
+			while (lp)
+			{
+				if (strcmp(lp->cInfo.msg.name, "") != 0 && strcmp(lp->cInfo.msg.name, cInfo->msg.name) != 0)
+				{
+					send(lp->cInfo.client, (char*)&cInfo->msg, sizeof(cInfo->msg), 0);
+					int error_send = GetLastError();
+					if (error_send != 0) {
+						std::cout << "send failed:" << error_send << std::endl;
+					}
+				}
+				lp = lp->next;
+			}
+			break;
+		default:
+			break;
+		}
+	}
+
+}
+
+#pragma endregion
 
 
 
@@ -184,25 +214,25 @@ typedef struct client {
 
 
 static struct event_base *evbase_accept;
-static workqueue_t workqueue;
+//static workqueue_t workqueue;
 
 static void sigHandler(int signal);
 
-static int setNonBlock(int fd) {
-
-}
 
 static void closeClient(client_t *client) {
+#ifdef SEL_LIBEVENT
 	if (client != NULL) {
 		if (client->fd >= 0) {
 			evutil_closesocket(client->fd);
 			client->fd = -1;
 		}
 	}
+#endif // SEL_LIBEVENT
 }
 
 
 static void closeAndFreeClient(client_t *client) {
+#ifdef SEL_LIBEVENT
 	if (client != NULL) {
 		closeClient(client);
 		if (client->buf_ev != NULL) {
@@ -220,9 +250,11 @@ static void closeAndFreeClient(client_t *client) {
 		}
 		free(client);
 	}
+#endif // SEL_LIBEVENT
 }
 
 void buffered_on_read(struct bufferevent *bev, void *arg) {
+#ifdef SEL_LIBEVENT
 	client_t *client = (client_t *)arg;
 	char data[4096];
 	int nbytes;
@@ -237,6 +269,7 @@ void buffered_on_read(struct bufferevent *bev, void *arg) {
 		errorOut("Error sending data to client on fd %d\n", client->fd);
 		closeClient(client);
 	}
+#endif // SEL_LIBEVENT
 }
 
 void buffered_on_write(struct bufferevent *bev, void *arg) {
@@ -248,15 +281,18 @@ void buffered_on_error(struct bufferevent *bev, short what, void *ctx) {
 }
  
 static void server_job_function(struct job *job) {
+#ifdef SEL_LIBEVENT
 	client_t *client = (client_t *)job->user_data;
 	event_base_dispatch(client->evbase);
 	closeAndFreeClient(client);
 	free(job);
+#endif // SEL_LIBEVENT
 }
 
 
 // Ready to be accept
 void on_accept(int fd, short ev, void *arg) {
+#ifdef SEL_LIBEVENT
 	int client_fd;
 	struct sockaddr_in client_addr;
 
@@ -323,9 +359,11 @@ void on_accept(int fd, short ev, void *arg) {
 	job->user_data = client;
 
 	workqueue_add_job(workqueue, job);
+#endif // SEL_LIBEVENT
 }
 
 int runServer() {
+#ifdef SEL_LIBEVENT
 	int listenfd;
 	struct sockaddr_in listen_addr;
 	struct event ev_accept;
@@ -402,16 +440,20 @@ int runServer() {
 	printf("Server shutdown.\n");
 
 	return 0;
+#endif // SEL_LIBEVENT
+	return 0;
 }
 
 
 void killServer() {
+#ifdef SEL_LIBEVENT
 	fprintf(stdout, "Stopping socket listener event loop.\n");
 	if (event_base_loopexit(evbase_accept, NULL)) {
 		perror("Error shutting down server");
 	}
 	fprintf(stdout, "Stopping workers.\n");
 	workqueue_shutdown(&workqueue);
+#endif // SEL_LIBEVENT
 }
 
 static void sigHandler(int signal) {
@@ -420,6 +462,61 @@ static void sigHandler(int signal) {
 }
 
 int main() {
+	std::cout << "I am the server" << std::endl;
+	
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+		std::cout << "WSAStartup failed :" << GetLastError() << std::endl;
+	}
 
-	return runServer();
+	// Create our listening socket 
+	int listenfd;
+	struct sockaddr_in listen_addr;
+	listenfd = socket(AF_INET, SOCK_STREAM, 0);
+	if (listenfd < 0) {
+		perror("listen failed");
+		return 1;
+	}
+
+	memset(&listen_addr, 0, sizeof(listen_addr));
+	listen_addr.sin_family = AF_INET;
+	listen_addr.sin_addr.s_addr = INADDR_ANY;
+	listen_addr.sin_port = htons(SERVER_PORT);
+	
+	int iResult = bind(listenfd, (struct sockaddr *)&listen_addr, sizeof(listen_addr));
+	if(iResult == SOCKET_ERROR) {
+		perror("bind failed");
+		WSACleanup();
+		return 1;
+	}
+
+	// listen
+	listen(listenfd, SOMAXCONN);
+
+	listHead = new userClientNode();
+	listHead->next = nullptr;
+	lp = listHead;
+	
+	// recv msg
+	while (1)
+	{
+		clientInfo *cInfo = new clientInfo();
+		int len_client = sizeof(sockaddr);
+		cInfo->client = accept(listenfd, (sockaddr*)&cInfo->saddr, &len_client);
+
+		if (GetLastError() != 0) {
+			continue;
+		}
+
+		// recv login user info
+		HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, cInfo, 0, 0);
+		if (!h_recvMes) {
+			std::cout << "Create Thread failed :" << GetLastError() << std::endl;
+		}
+	}
+
+	WSACleanup();
+	getchar();
+
+	return 0;
 }

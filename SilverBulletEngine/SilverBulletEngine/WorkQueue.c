@@ -17,6 +17,10 @@
 }
 
 static void *worker_function(void *ptr) {
+#ifdef SEL_LIBEVENT
+
+
+
 	worker_t *worker = (worker_t *)ptr;
 	job_t *job;
 
@@ -51,9 +55,11 @@ static void *worker_function(void *ptr) {
 
 	free(worker);
 	pthread_exit(NULL);
+#endif // SEL_LIBEVENT
 }
 
 int workqueue_init(workqueue_t *workqueue, int numWorkers) {
+#ifdef SEL_LIBEVENT
 	int i;
 	worker_t *worker;
 	pthread_cond_t blank_cond = PTHREAD_COND_INITIALIZER;
@@ -78,11 +84,12 @@ int workqueue_init(workqueue_t *workqueue, int numWorkers) {
 		}
 		LL_ADD(worker, worker->workqueue->workers);
 	}
-
+#endif // SEL_LIBEVENT
 	return 0;
 }
 
 void workqueue_shutdown(workqueue_t *workqueue) {
+#ifdef SEL_LIBEVENT
 	worker_t *worker = NULL;
 
 	/* Set all workers to terminate. */
@@ -97,12 +104,15 @@ void workqueue_shutdown(workqueue_t *workqueue) {
 	workqueue->waiting_jobs = NULL;
 	pthread_cond_broadcast(&workqueue->jobs_cond);
 	pthread_mutex_unlock(&workqueue->jobs_mutex);
+#endif // SEL_LIBEVENT
 }
 
 void workqueue_add_job(workqueue_t *workqueue, job_t *job) {
+#ifdef SEL_LIBEVENT
 	/* Add the job to the job queue, and notify a worker. */
 	pthread_mutex_lock(&workqueue->jobs_mutex);
 	LL_ADD(job, workqueue->waiting_jobs);
 	pthread_cond_signal(&workqueue->jobs_cond);
 	pthread_mutex_unlock(&workqueue->jobs_mutex);
+#endif // SEL_LIBEVENT
 }
