@@ -58,8 +58,8 @@ struct uMsg
 {
 	int type;
 	char name[64];
-	char text[1024]; // text msg
-	mPoint *m_point;
+	char text[512]; // text msg
+	//mPoint *m_point;
 };
 
 // Client
@@ -154,7 +154,7 @@ void recvMessage(PVOID pParam)
 
 		if (ret_recv <= 0)
 		{
-			std::cout << msg.name << "Disconnect：" << GetLastError() << std::endl;
+			std::cout << msg.name << " Disconnect：" << GetLastError() << std::endl;
 			break;
 		}
 

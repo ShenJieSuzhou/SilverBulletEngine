@@ -1,10 +1,6 @@
 ﻿// TestClientDemo.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
-
-
-
 #undef UNICODE
-
 #define WIN32_LEAN_AND_MEAN
 
 #include <iostream>
@@ -18,7 +14,6 @@
 #include <cstdio>
 
 #pragma comment (lib, "Ws2_32.lib")
-#define DEFAULT_BUFLEN 256
 
 SOCKET client;
 sockaddr_in sai_client;
@@ -34,10 +29,9 @@ struct uMsg
 {
 	int type;
 	char name[64];
-	char text[1024]; // text msg
+	char text[512]; // text msg
 	mPoint *m_point;
 };
-
 
 void recvMessage()
 {
@@ -67,8 +61,8 @@ int main()
 		return 1;
 	}
 
-	SOCKET ConnectSocket = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-	if (ConnectSocket == INVALID_SOCKET) 
+	client = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+	if (client == INVALID_SOCKET)
 	{
 		std::cout << "Error at socket(): " << WSAGetLastError() << std::endl;
 		WSACleanup();
@@ -82,16 +76,16 @@ int main()
 	memset(&(addrServer.sin_zero), '\0', 8);
 
 	std::cout << "Connecting..." << std::endl;
-	iResult = connect(ConnectSocket, (SOCKADDR *)&addrServer, sizeof(addrServer));
+	iResult = connect(client, (SOCKADDR *)&addrServer, sizeof(addrServer));
 	if (iResult == SOCKET_ERROR) 
 	{
-		closesocket(ConnectSocket);
+		closesocket(client);
 		std::cout << "Unable to connect to server: " << WSAGetLastError() << std::endl;
 		WSACleanup();
 		return 1;
 	}
 
-	// input username
+	// Input username
 	uMsg msg;
 	msg.type = 1;
 	std::string name;
@@ -101,20 +95,21 @@ int main()
 	int error_send;
 
 	// Send file name
-	iResult = send(ConnectSocket, (char*)&msg, sizeof(msg), 0);
+	iResult = send(client, (char*)&msg, sizeof(msg), 0);
 	if (iResult == SOCKET_ERROR) {
 		std::cout << "Send failed with error: " << WSAGetLastError() << std::endl;
 		WSACleanup();
 		return 1;
 	}
 
-	// recv server info
+	// Recv server info
 	HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
 	if (!h_recvMes) {
 		std::cout << "Create thread failed : " << GetLastError() << std::endl;
+		return 1;
 	}
 
-	// send msg
+	// Send msg
 	while (1)
 	{
 		std::string content;
