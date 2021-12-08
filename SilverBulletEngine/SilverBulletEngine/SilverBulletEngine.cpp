@@ -30,6 +30,7 @@
 #include <stdlib.h>
 #include <stdio.h>
 #include <errno.h>
+#include <event.h>
 #include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <thread>
@@ -71,15 +72,26 @@ struct uMsg
 // Client
 struct clientInfo 
 {
-	evutil_socket_t client;
+	evutil_socket_t fd;
 	sockaddr_in saddr;
 	uMsg msg;
 };
 
+struct client {
+	evutil_socket_t fd;
+
+	struct event_base *evbase;
+
+	struct bufferevent *buf_ev;
+
+	struct evbuffer *output_buffer;
+};
+
+
 // client chain node
 typedef struct userClientNode
 {
-	clientInfo cInfo;
+	client cInfo;
 	userClientNode *next;
 } *ucnode_t;
 
@@ -94,12 +106,13 @@ static struct event_base *evbase_accept;
 #pragma region chain node logic
 
 // Insert Client to chain
-userClientNode *insertNode(userClientNode *head, SOCKET client, sockaddr_in addr, uMsg msg)
+userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_base *evbase, struct bufferevent *buf_ev, struct evbuffer *output_buffer)
 {
 	userClientNode *newNode = new userClientNode();
-	newNode->cInfo.client = client;
-	newNode->cInfo.saddr = addr;
-	newNode->cInfo.msg = msg;
+	newNode->cInfo.fd = client;
+	newNode->cInfo.evbase = evbase;
+	newNode->cInfo.buf_ev = buf_ev;
+	newNode->cInfo.output_buffer = output_buffer;
 	userClientNode *p = head;
 
 	if (p == nullptr)
@@ -126,14 +139,14 @@ userClientNode *deleteNode(userClientNode *head, SOCKET client)
 		return head;
 	}
 
-	if (p->cInfo.client == client)
+	if (p->cInfo.fd == client)
 	{
 		head = p->next;
 		delete p;
 		return head;
 	}
 
-	while (p->next != nullptr && p->next->cInfo.client != client)
+	while (p->next != nullptr && p->next->cInfo.fd != client)
 	{
 		p = p->next;
 	}
@@ -150,59 +163,43 @@ userClientNode *deleteNode(userClientNode *head, SOCKET client)
 }
 
 
-
-
-
-
-
-static void closeClient(client_t *client) {
-#ifdef SEL_LIBEVENT
-	if (client != NULL) {
-		if (client->fd >= 0) {
-			evutil_closesocket(client->fd);
-			client->fd = -1;
+static void closeClient(client *cli) {
+	if (cli != NULL) {
+		if (cli->fd >= 0) {
+			evutil_closesocket(cli->fd);
+			cli->fd = -1;
 		}
 	}
-#endif // SEL_LIBEVENT
-}
-
-
-static void closeAndFreeClient(client_t *client) {
-#ifdef SEL_LIBEVENT
-	if (client != NULL) {
-		closeClient(client);
-		if (client->buf_ev != NULL) {
-			bufferevent_free(client->buf_ev);
-			client->buf_ev = NULL;
-		}
-
-		if (client->evbase != NULL) {
-			event_base_free(client->evbase);
-			client->evbase = NULL;
-		}
-		if (client->output_buffer != NULL) {
-			evbuffer_free(client->output_buffer);
-			client->output_buffer = NULL;
-		}
-		free(client);
-	}
-#endif // SEL_LIBEVENT
 }
 
 void buffered_on_read(struct bufferevent *bev, void *arg) {
-	client_t *client = (client_t *)arg;
+
+	#define MAX_LINE    256
+	char line[MAX_LINE + 1];
+	int n;
+
+	evutil_socket_t fd = bufferevent_getfd(bev);
+
+	while (n = bufferevent_read(bev, line, MAX_LINE), n > 0) {
+		line[n] = '\0';
+		printf("fd=%u, read line: %s\n", fd, line);
+
+		bufferevent_write(bev, line, n);
+	}
+
+	client *cli = (client *)arg;
 	char data[4096];
 	int nbytes;
 
 	while ((nbytes = EVBUFFER_LENGTH(bev->input)) > 0) {
 		if (nbytes > 4096) nbytes = 4096;
 		evbuffer_remove(bev->input, data, nbytes);
-		evbuffer_add(client->output_buffer, data, nbytes);
+		evbuffer_add(cli->output_buffer, data, nbytes);
 	}
 
-	if (bufferevent_write_buffer(bev, client->output_buffer)) {
-		errorOut("Error sending data to client on fd %d\n", client->fd);
-		closeClient(client);
+	if (bufferevent_write_buffer(bev, cli->output_buffer)) {
+		errorOut("Error sending data to client on fd %d\n", cli->fd);
+		//closeClient(cli);
 	}
 }
 
@@ -211,75 +208,79 @@ void buffered_on_write(struct bufferevent *bev, void *arg) {
 }
 
 void buffered_on_error(struct bufferevent *bev, short what, void *ctx) {
-	closeClient((client_t *)ctx);
+	//closeClient((client_t *)ctx);
 }
  
 
 // Ready to be accept
 void on_accept(int fd, short ev, void *arg) 
 {
-	evbase_accept = (struct event_base *)arg;
+	struct event_base *base = (struct event_base *)arg;
+	evutil_socket_t fd;
 	struct sockaddr_in client_addr;
 	socklen_t client_len = sizeof(client_addr);
 
-	// Create a client object
-	clientInfo *cInfo = new clientInfo();
-	int len_client = sizeof(sockaddr);
-	if (cInfo == NULL)
-	{
-		perror("failed to allocate memory for client state");
-		evutil_closesocket(client_fd);
-		return;
-	}
 	
-	cInfo->client = accept(fd, (struct sockaddr *)&client_addr, &client_len);
-	if (client_fd < 0) 
+	fd = accept(fd, (struct sockaddr *)&client_addr, &client_len);
+	if (fd < 0) 
 	{
 		perror("accept failed");
 		return;
 	}
 
-	if (evutil_make_socket_nonblocking(cInfo->client) < 0)
-	{
-		perror("failed to set client socket to non-blocking");
-		return;
-	}
-
-	
-
-	if(cInfo->client > FD_SETSIZE)
+	if (fd > FD_SETSIZE)
 	{
 		perror("client_fd > FD_SETSIZE\n");
 		return;
 	}
 
-	printf("ACCEPT: fd = %u\n", cInfo->client);
+	if (evutil_make_socket_nonblocking(fd) < 0)
+	{
+		perror("failed to set client socket to non-blocking");
+		return;
+	}
 
+	// Create a client object
+	client *cInfo = new client();
+	int len_client = sizeof(sockaddr);
+	if (cInfo == NULL)
+	{
+		perror("failed to allocate memory for client state");
+		evutil_closesocket(fd);
+		return;
+	}
 
-	if ((client->output_buffer = evbuffer_new()) == NULL) {
+	cInfo->fd = fd;
+
+	printf("ACCEPT: fd = %u\n", cInfo->fd);
+
+	if ((cInfo->output_buffer = evbuffer_new()) == NULL) {
 		perror("client output buffer allocation failed");
-		closeAndFreeClient(client);
+		//closeAndFreeClient(client);
 		return;
 	}
 
 
-	if ((client->evbase = event_base_new()) == NULL) {
+	if ((cInfo->evbase = event_base_new()) == NULL) {
 		perror("client event_base creation failed");
-		closeAndFreeClient(client);
+		//closeAndFreeClient(client);
 		return;
 	}
 
 	// Create buffer event 
-	if ((client->buf_ev = bufferevent_new(client_fd, buffered_on_read, buffered_on_write, buffered_on_error, client)) == NULL) {
+	struct bufferevent *bev = bufferevent_socket_new(base, cInfo->fd, BEV_OPT_CLOSE_ON_FREE);
+	if (bev == NULL)
+	{
 		perror("client bufferevent creation failed");
-		closeAndFreeClient(client);
 		return;
 	}
+	bufferevent_setcb(bev, buffered_on_read, buffered_on_write, buffered_on_error, arg);
+	cInfo->buf_ev = bev;
+	bufferevent_base_set(cInfo->evbase, cInfo->buf_ev);
+	bufferevent_settimeout(cInfo->buf_ev, SOCKET_READ_TIMEOUT_SECONDS, SOCKET_WRITE_TIMEOUT_SECONDS);
+	bufferevent_enable(cInfo->buf_ev, EV_READ | EV_WRITE | EV_PERSIST);
 
-	bufferevent_base_set(client->evbase, client->buf_ev);
-	bufferevent_settimeout(client->buf_ev, SOCKET_READ_TIMEOUT_SECONDS, SOCKET_WRITE_TIMEOUT_SECONDS);
 
-	bufferevent_enable(client->buf_ev, EV_READ);
 }
 
 int runServer() {
@@ -312,7 +313,7 @@ int runServer() {
 		return 1;
 	} 
 
-	printf("Listening....")；
+	printf("Listening....");
 
 	if (evutil_make_socket_nonblocking(listenfd) < 0) {
 		perror("failed to set server socket to non-blocking");
@@ -328,6 +329,11 @@ int runServer() {
 	event_set(&ev_accept, listenfd, EV_READ | EV_PERSIST, on_accept, (void *)evbase_accept);
 	event_base_set(evbase_accept, &ev_accept);
 	event_add(&ev_accept, NULL);
+
+	// Init list
+	listHead = new userClientNode();
+	listHead->next = nullptr;
+	lp = listHead;
 
 	printf("Server running. \n");
 
