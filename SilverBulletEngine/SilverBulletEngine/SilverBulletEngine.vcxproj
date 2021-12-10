@@ -152,10 +152,6 @@
   </ItemDefinitionGroup>
   <ItemGroup>
     <ClCompile Include="SilverBulletEngine.cpp" />
-    <ClCompile Include="WorkQueue.c" />
-  </ItemGroup>
-  <ItemGroup>
-    <ClInclude Include="WorkQueue.h" />
   </ItemGroup>
   <ItemGroup>
     <None Include="packages.config" />
