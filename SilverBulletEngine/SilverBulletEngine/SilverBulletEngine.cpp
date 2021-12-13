@@ -339,6 +339,12 @@ void on_accept(int fd, short ev, void *arg)
 }
 
 int runServer() {
+	std::cout << "I am the server" << std::endl;
+
+	WSADATA wsaData;
+	if (WSAStartup(MAKEWORD(2, 2), &wsaData)) {
+		std::cout << "WSAStartup failed :" << GetLastError() << std::endl;
+	}
 
 	int listenfd;
 	struct sockaddr_in listen_addr;
@@ -375,7 +381,7 @@ int runServer() {
 		return 1;
 	} 
 
-	printf("Listening....");
+	printf("Listening.... \n");
 
 	if (evutil_make_socket_nonblocking(listenfd) < 0) {
 		perror("failed to set server socket to non-blocking");
