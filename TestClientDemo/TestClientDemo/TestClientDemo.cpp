@@ -33,6 +33,7 @@ struct uMsg
 	mPoint *m_point;
 };
 
+/*
 void recvMessage()
 {
 	while (1) {
@@ -45,7 +46,7 @@ void recvMessage()
 
 		std::cout << msg.name << ": " << msg.text << std::endl;
 	}
-}
+}*/
 
 int main()
 {
@@ -86,58 +87,77 @@ int main()
 	}
 
 	// Input username
-	uMsg msg;
-	msg.type = 1;
-	std::string name;
-	getline(std::cin, name);
-	strncpy_s(msg.name, sizeof(msg.name), name.c_str(), 64);
-	strncpy_s(msg.text, sizeof(msg.text), "", 512);
-	int error_send;
+	//uMsg msg;
+	//msg.type = 1;
+	//std::string name;
+	//getline(std::cin, name);
+	//strncpy_s(msg.name, sizeof(msg.name), name.c_str(), 64);
+	//strncpy_s(msg.text, sizeof(msg.text), "", 512);
+	//int error_send;
 
 	// Send file name
-	iResult = send(client, (char*)&msg, sizeof(msg), 0);
-	if (iResult == SOCKET_ERROR) {
-		std::cout << "Send failed with error: " << WSAGetLastError() << std::endl;
-		WSACleanup();
-		return 1;
-	}
+	//iResult = send(client, (char*)&name, sizeof(name), 0);
+	//if (iResult == SOCKET_ERROR) {
+	//	std::cout << "Send failed with error: " << WSAGetLastError() << std::endl;
+	//	WSACleanup();
+	//	return 1;
+	//}
 
-	// Recv server info
-	HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
-	if (!h_recvMes) {
-		std::cout << "Create thread failed : " << GetLastError() << std::endl;
-		return 1;
-	}
+	//// Recv server info
+	//HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
+	//if (!h_recvMes) {
+	//	std::cout << "Create thread failed : " << GetLastError() << std::endl;
+	//	return 1;
+	//}
 
-	// Send msg
+	//// Send msg
+	//while (1)
+	//{
+	//	std::string content;
+	//	getline(std::cin, content);
+
+	//	if (content == "quit") {
+	//		msg.type = 2;
+	//		send(client, (char*)&msg, sizeof(msg), 0);
+	//		error_send = GetLastError();
+	//		if (error_send != 0) {
+	//			std::cout << "send failed:" << error_send << std::endl;
+	//		}
+	//		closesocket(client);
+	//		WSACleanup();
+	//		return 0;
+	//	}
+	//	
+	//	msg.type = 3;
+	//	strncpy_s(msg.text, sizeof(msg.text), content.c_str(), 512);
+	//	send(client, (char*)&msg, sizeof(msg), 0);
+	//	error_send = GetLastError();
+	//	if (error_send != 0)
+	//	{
+	//		std::cout << "send failed: " << error_send << std::endl;
+	//	}
+	//}
+
+	//getchar();
+	//char buffer[1024];
+	int len;
+
 	while (1)
 	{
-		std::string content;
-		getline(std::cin, content);
-
-		if (content == "quit") {
-			msg.type = 2;
-			send(client, (char*)&msg, sizeof(msg), 0);
-			error_send = GetLastError();
-			if (error_send != 0) {
-				std::cout << "send failed:" << error_send << std::endl;
-			}
-			closesocket(client);
-			WSACleanup();
-			return 0;
-		}
-		
-		msg.type = 3;
-		strncpy_s(msg.text, sizeof(msg.text), content.c_str(), 512);
-		send(client, (char*)&msg, sizeof(msg), 0);
-		error_send = GetLastError();
-		if (error_send != 0)
+		char buffer[] = "hello socket";
+		if (send(client, buffer, sizeof(buffer), 0) < 0)
 		{
-			std::cout << "send failed: " << error_send << std::endl;
+			perror("send");
 		}
+		if (len = recv(client, buffer, 1024*sizeof(char), 0) < 0)
+		{
+			perror("recv");
+		}
+		buffer[len] = '\0';
+		printf("recv string :%s\n", buffer);
 	}
-
-	getchar();
+	closesocket(client);
+	//closeso(client);
 	return 0;
 }
 

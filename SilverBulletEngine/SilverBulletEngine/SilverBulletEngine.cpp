@@ -54,7 +54,6 @@
 
 #pragma comment (lib, "Ws2_32.lib")
 
-
 #pragma region  LogicDemo1
  
 struct mPoint
@@ -106,6 +105,8 @@ userClientNode *listHead;
 userClientNode *lp;
 
 static struct event_base *evbase_accept;
+
+static char g_szReadMsg[256] = { 0 };
 
 #pragma endregion
 
@@ -186,7 +187,17 @@ void buffered_on_read(struct bufferevent *bev, void *arg)
 	uint8_t data[8192];
 	size_t n;
 
-	while (1)
+	memset(g_szReadMsg, 0x00, sizeof(g_szReadMsg));
+	struct evbuffer *input = bufferevent_get_input(bev);
+	size_t sz = evbuffer_get_length(input);
+
+	if (sz > 0)
+	{
+		bufferevent_read(bev, g_szReadMsg, sz);
+		printf("ser:>>%s\n", g_szReadMsg);
+	}
+
+	/*while (1)
 	{
 		n = bufferevent_read(bev, data, sizeof(data));
 		if (n < 0)
@@ -198,9 +209,9 @@ void buffered_on_read(struct bufferevent *bev, void *arg)
 		lp = listHead;
 		while (lp)
 		{
-			if (lp->fd != this_client->fd) {
+			//if (lp->fd != this_client->fd) {
 				bufferevent_write(lp->buf_ev, data, n);
-			}
+			//}
 			lp = lp->next;
 		}
 	}
@@ -231,7 +242,7 @@ void buffered_on_read(struct bufferevent *bev, void *arg)
 	//if (bufferevent_write_buffer(bev, cli->output_buffer)) {
 	//	errorOut("Error sending data to client on fd %d\n", cli->fd);
 	//	//closeClient(cli);
-	//}
+	//}*/
 }
 
 void buffered_on_write(struct bufferevent *bev, void *arg) 
@@ -283,11 +294,11 @@ void on_accept(int fd, short ev, void *arg)
 		return;
 	}
 
-	if (client_fd > FD_SETSIZE)
-	{
-		perror("client_fd > FD_SETSIZE\n");
-		return;
-	}
+	//if (client_fd > FD_SETSIZE)
+	//{
+	//	perror("client_fd > FD_SETSIZE\n");
+	//	return;
+	//}
 
 	if (evutil_make_socket_nonblocking(client_fd) < 0)
 	{
@@ -336,6 +347,18 @@ void on_accept(int fd, short ev, void *arg)
 	bufferevent_enable(cInfo->buf_ev, EV_READ | EV_WRITE | EV_PERSIST);
 
 	insertNode(listHead, cInfo->fd, cInfo->evbase, cInfo->buf_ev, cInfo->output_buffer);
+
+	// send a message to client when connect is succeeded
+	char send_msg[1024] = { 0 };
+	std::string msg = "connected";
+	//char *ptr = send_msg;
+	//memcpy(ptr, msg.c_str(), msg.size);
+	int len = msg.size();
+	int result = bufferevent_write(bev, msg.c_str(), len);
+	if (result < 0) 
+	{
+		perror("Server send error");
+	}
 }
 
 int runServer() {
@@ -396,7 +419,7 @@ int runServer() {
 
 	printf("Server running. \n");
 
-	ev_accept = event_new(evbase_accept, listenfd, EV_READ | EV_PERSIST, on_accept, NULL);
+	ev_accept = event_new(evbase_accept, listenfd, EV_READ | EV_PERSIST, on_accept, (void*)evbase_accept);
 	event_add(ev_accept, NULL);
 
 	// Start the event loop
