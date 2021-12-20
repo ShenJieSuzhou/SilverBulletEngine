@@ -65,7 +65,7 @@ int main()
 	struct evconnlistener *listener;
 	struct event_base *base = event_base_new();
 	if (!base) {
-		cout << "Could not initialize libevent" << endl;;
+		cout << "Could not initialize libevent" << endl;
 		return 1;
 	}
 	//默认情况下，链接监听器接收新套接字后，会将其设置为非阻塞的
@@ -103,7 +103,7 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	ClientMap[++conectNumber] = bev;
 	//read write event
-	bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, NULL);
+	bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
 	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
 	//send a message to client when connect is succeeded
@@ -132,41 +132,41 @@ void conn_writecb(struct bufferevent *bev, void *user_data) {
 
 // 收消息
 void conn_readcb(struct bufferevent *bev, void *user_data) {
-	struct evbuffer *input = bufferevent_get_input(bev);
-	size_t sz = evbuffer_get_length(input);
+	//struct evbuffer *input = bufferevent_get_input(bev);
+	//size_t sz = evbuffer_get_length(input);
 
-	unsigned int sourceID = get_client_id(bev);
+	//unsigned int sourceID = get_client_id(bev);
 
 	//while (sz >= MAX_PACKET_SIZE) {
-		char msg[MAX_PACKET_SIZE] = { 0 };
-		char *ptr = msg;
-		bufferevent_read(bev, ptr, HEADER_LENGTH);
+	//	char msg[MAX_PACKET_SIZE] = { 0 };
+	//	char *ptr = msg;
+	//	bufferevent_read(bev, ptr, HEADER_LENGTH);
 
 
-		unsigned int len = ((Header*)ptr)->length;
-		unsigned int targetID = ((Header*)ptr)->targetID;
-		((Header*)ptr)->sourceID = sourceID;
+	//	unsigned int len = ((Header*)ptr)->length;
+	//	unsigned int targetID = ((Header*)ptr)->targetID;
+	//	((Header*)ptr)->sourceID = sourceID;
 
-		ptr += HEADER_LENGTH;
+	//	ptr += HEADER_LENGTH;
 
-		if (sz < len + HEADER_LENGTH) {
-			return;
-			//break;
-		}
+	//	if (sz < len + HEADER_LENGTH) {
+	//		return;
+	//		//break;
+	//	}
 
-		bufferevent_read(bev, ptr, len);
+	//	bufferevent_read(bev, ptr, len);
 
-		receiveNumber++;
-		dataSize += len + HEADER_LENGTH;
+	//	receiveNumber++;
+	//	dataSize += len + HEADER_LENGTH;
 
-		if (ClientMap.find(targetID) != ClientMap.end()) {
-			sendNumber++;
-			//bufferevent_write(ClientMap[targetID], msg, len + HEADER_LENGTH);
-		}
-		else {
-			//can't find
-		}
-		sz = evbuffer_get_length(input);
+	//	if (ClientMap.find(targetID) != ClientMap.end()) {
+	//		sendNumber++;
+	//		//bufferevent_write(ClientMap[targetID], msg, len + HEADER_LENGTH);
+	//	}
+	//	else {
+	//		//can't find
+	//	}
+	//	sz = evbuffer_get_length(input);
 	//}
 
 	////calculate the speed of data and packet

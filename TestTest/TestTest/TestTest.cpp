@@ -12,7 +12,8 @@
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <thread>
-
+#include <cstdio>
+#include <string>
 
 using namespace std;
 
@@ -44,10 +45,8 @@ int main()
 {
 	cout << "Client running" << endl;
 
-
 	WSAData wsaData;
 	WSAStartup(MAKEWORD(2, 0), &wsaData);
-
 
 	struct sockaddr_in srv;
 	memset(&srv, 0, sizeof(srv));
@@ -77,6 +76,33 @@ int main()
 	event_base_dispatch(base);
 	event_base_free(base);
 
+	// Send Message
+	//while (1)
+	//{
+	//	cout << "Send Message" << endl;
+	//	std::string content;
+	//	getline(std::cin, content);
+	//	int len = 0;
+	//	static int num[10] = { 0 };
+	//	unsigned int toid = rand() % 200;
+	//	Header header;
+	//	header.targetID = toid;
+	//	header.length = content.size();
+	//	
+	//	write_buffer(content, bev, header);
+
+	//	int error_send = GetLastError();
+	//	if (error_send != 0)
+	//	{
+	//		std::cout << "send failed: " << error_send << std::endl;
+	//		//closesocket(client);
+	//		WSACleanup();
+	//		return 0;
+	//	}
+	//}
+
+	//getchar();
+
 	return 0;
 }
 
@@ -84,14 +110,29 @@ void conn_writecb(struct bufferevent *bev, void *user_data) {
 	//Sleep(SEND_INTERVAL);
 	//int len = 0;
 	//static int num[10] = { 0 };
-	//unsigned int toID = rand() % CLIENT_NUMBER + 1;
+	//unsigned int toid = rand() % 200 + 1;
 	//Header header;
 
-	//string msg(DATA_LENGTH - HEADER_LENGTH, '0');
+	//string msg = "hello";
 
-	//header.targetID = toID;
+	//header.targetID = toid;
 	//header.length = msg.size();
 	//write_buffer(msg, bev, header);
+	//bufferevent_write(bev, "", 10);
+	/*while (true)
+	{
+		cout << "conn_writecb " << endl;
+		std::string content;
+		getline(std::cin, content);
+		int len = 0;
+		static int num[10] = { 0 };
+		unsigned int toid = rand() % 200;
+		Header header;
+		header.targetID = toid;
+		header.length = content.size();
+		
+		write_buffer(content, bev, header);
+	}*/
 }
 
 void write_buffer(string& msg, struct bufferevent* bev, Header& header) {
@@ -111,8 +152,9 @@ void write_buffer(string& msg, struct bufferevent* bev, Header& header) {
 	len += sizeof(Header);
 	memcpy(ptr + len, msg.c_str(), msg.size());
 	len += msg.size();
-	bufferevent_write(bev, send_msg, len);
-
+	if (bufferevent_write(bev, send_msg, len) < 0) {
+		cout << "data send error" << endl;
+	}
 }
 
 void conn_readcb(struct bufferevent *bev, void *user_data) {
