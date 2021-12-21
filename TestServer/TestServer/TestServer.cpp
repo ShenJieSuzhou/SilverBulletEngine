@@ -103,90 +103,100 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 
 	ClientMap[++conectNumber] = bev;
 	//read write event
-	bufferevent_setcb(bev, conn_readcb, conn_writecb, conn_eventcb, NULL);
+	bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, NULL);
 	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
-	//send a message to client when connect is succeeded
-	string msg = "connedted";
-	Header header;
-	header.sourceID = 0;
-	header.targetID = conectNumber;
-	header.length = msg.size();
-	write_buffer(msg, bev, header);
+	////send a message to client when connect is succeeded
+	//string msg = "connedted";
+	//Header header;
+	//header.sourceID = 0;
+	//header.targetID = conectNumber;
+	//header.length = msg.size();
+	//write_buffer(msg, bev, header);
 }
 
-// 发消息
-void conn_writecb(struct bufferevent *bev, void *user_data) {
-	Sleep(2000);
-	int len = 0;
-	Header header;
-	unsigned int toID = get_client_id(bev);
-	string msg = "hello client " + inttostr(toID);
-
-	header.targetID = toID;
-	header.sourceID = 0;
-	header.length = msg.size();
-
-	write_buffer(msg, bev, header);
-}
+//// 发消息
+//void conn_writecb(struct bufferevent *bev, void *user_data) {
+//	Sleep(2000);
+//	int len = 0;
+//	Header header;
+//	unsigned int toID = get_client_id(bev);
+//	string msg = "hello client " + inttostr(toID);
+//
+//	header.targetID = toID;
+//	header.sourceID = 0;
+//	header.length = msg.size();
+//
+//	write_buffer(msg, bev, header);
+//}
 
 // 收消息
 void conn_readcb(struct bufferevent *bev, void *user_data) {
-	//struct evbuffer *input = bufferevent_get_input(bev);
-	//size_t sz = evbuffer_get_length(input);
+	struct evbuffer *input = bufferevent_get_input(bev);
+	size_t sz = evbuffer_get_length(input);
+	unsigned int sourceID = get_client_id(bev);
 
-	//unsigned int sourceID = get_client_id(bev);
+	char buf[255];
+	bufferevent_read(bev, buf, sizeof(buf));
+	buf[sz] = '\0';
+	cout << "收到客户端来消息" << endl;
+	fprintf(stdout, "Read: %s\n", buf);
+	string msg = "I am server";
+	
+	if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
+		cout << "server write error" << endl;
+	}
+	
 
 	//while (sz >= MAX_PACKET_SIZE) {
-	//	char msg[MAX_PACKET_SIZE] = { 0 };
-	//	char *ptr = msg;
-	//	bufferevent_read(bev, ptr, HEADER_LENGTH);
+//	char msg[MAX_PACKET_SIZE] = { 0 };
+//	char *ptr = msg;
+//	bufferevent_read(bev, ptr, HEADER_LENGTH);
 
 
-	//	unsigned int len = ((Header*)ptr)->length;
-	//	unsigned int targetID = ((Header*)ptr)->targetID;
-	//	((Header*)ptr)->sourceID = sourceID;
+//	unsigned int len = ((Header*)ptr)->length;
+//	unsigned int targetID = ((Header*)ptr)->targetID;
+//	((Header*)ptr)->sourceID = sourceID;
 
-	//	ptr += HEADER_LENGTH;
+//	ptr += HEADER_LENGTH;
 
-	//	if (sz < len + HEADER_LENGTH) {
-	//		return;
-	//		//break;
-	//	}
+//	if (sz < len + HEADER_LENGTH) {
+//		return;
+//		//break;
+//	}
 
-	//	bufferevent_read(bev, ptr, len);
+//	bufferevent_read(bev, ptr, len);
 
-	//	receiveNumber++;
-	//	dataSize += len + HEADER_LENGTH;
+//	receiveNumber++;
+//	dataSize += len + HEADER_LENGTH;
 
-	//	if (ClientMap.find(targetID) != ClientMap.end()) {
-	//		sendNumber++;
-	//		//bufferevent_write(ClientMap[targetID], msg, len + HEADER_LENGTH);
-	//	}
-	//	else {
-	//		//can't find
-	//	}
-	//	sz = evbuffer_get_length(input);
-	//}
+//	if (ClientMap.find(targetID) != ClientMap.end()) {
+//		sendNumber++;
+//		//bufferevent_write(ClientMap[targetID], msg, len + HEADER_LENGTH);
+//	}
+//	else {
+//		//can't find
+//	}
+//	sz = evbuffer_get_length(input);
+//}
 
-	////calculate the speed of data and packet
-	//clock_t nowtime = clock();
-	//if (lastTime == 0) {
-	//	lastTime = nowtime;
-	//}
-	//else {
-	//	cout << "client number: " << ClientMap.size() << " ";
-	//	cout << "data speed: " << (double)dataSize / (nowtime - lastTime) << "k/s ";
-	//	cout << "packet speed: receive " << (double)receiveNumber / (nowtime - lastTime) << "k/s ";
-	//	cout << "send " << (double)sendNumber / (nowtime - lastTime) << "k/s" << endl;
-	//	if (nowtime - lastTime > TIME_INTERVAL) {
-	//		dataSize = 0;
-	//		lastTime = nowtime;
-	//		receiveNumber = 0;
-	//		sendNumber = 0;
-	//	}
-	//}
-	cout << "收到客户端来消息" << endl;
+////calculate the speed of data and packet
+//clock_t nowtime = clock();
+//if (lastTime == 0) {
+//	lastTime = nowtime;
+//}
+//else {
+//	cout << "client number: " << ClientMap.size() << " ";
+//	cout << "data speed: " << (double)dataSize / (nowtime - lastTime) << "k/s ";
+//	cout << "packet speed: receive " << (double)receiveNumber / (nowtime - lastTime) << "k/s ";
+//	cout << "send " << (double)sendNumber / (nowtime - lastTime) << "k/s" << endl;
+//	if (nowtime - lastTime > TIME_INTERVAL) {
+//		dataSize = 0;
+//		lastTime = nowtime;
+//		receiveNumber = 0;
+//		sendNumber = 0;
+//	}
+//}
 }
 
 

@@ -161,27 +161,33 @@ void conn_readcb(struct bufferevent *bev, void *user_data) {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	size_t sz = evbuffer_get_length(input);	//返回evbuffer储存的字节数
 
+	char buf[255];
+	bufferevent_read(bev, buf, sizeof(buf));
+	buf[sz] = '\0';
+	cout << "收到服务端来消息" << endl;
+	fprintf(stdout, "Read: %s\n", buf);
+
 	//while (sz >= MAX_PACKET_SIZE) {
-		char msg[MAX_PACKET_SIZE] = { 0 };
-		char *ptr = msg;
-		bufferevent_read(bev, ptr, HEADER_LENGTH);
+		//char msg[MAX_PACKET_SIZE] = { 0 };
+		//char *ptr = msg;
+		//bufferevent_read(bev, ptr, HEADER_LENGTH);
 
-		unsigned int len = ((Header*)ptr)->length;
-		unsigned int targetID = ((Header*)ptr)->targetID;
-		unsigned int sourceID = ((Header*)ptr)->sourceID;
+		//unsigned int len = ((Header*)ptr)->length;
+		//unsigned int targetID = ((Header*)ptr)->targetID;
+		//unsigned int sourceID = ((Header*)ptr)->sourceID;
 
-		ptr += HEADER_LENGTH;
+		//ptr += HEADER_LENGTH;
 
-		if (sz < len + HEADER_LENGTH) {
-			return;
-			//break;
-		}
+		//if (sz < len + HEADER_LENGTH) {
+		//	return;
+		//	//break;
+		//}
 
-		bufferevent_read(bev, ptr, len);
+		//bufferevent_read(bev, ptr, len);
 
-		cout << "receive " << HEADER_LENGTH + strlen(ptr) << " bytes from client " << sourceID << endl;
+		//cout << "receive " << HEADER_LENGTH + strlen(ptr) << " bytes from client " << sourceID << endl;
 
-		sz = evbuffer_get_length(input);
+		//sz = evbuffer_get_length(input);
 	//}
 }
 
@@ -199,12 +205,15 @@ void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 		cout << "Connect succeed" << endl;
 
 		string msg = "connect to server";
-		Header header;
+		/*Header header;
 		header.targetID = 0;
 		header.length = msg.size();
 
-		write_buffer(msg, bev, header);
+		write_buffer(msg, bev, header);*/
 
+		if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
+			cout << "data send error" << endl;
+		}
 		return;
 	}
 
