@@ -33,20 +33,30 @@ struct uMsg
 	mPoint *m_point;
 };
 
-/*
+
 void recvMessage()
 {
 	while (1) {
-		uMsg msg;
-		int ret_recv = recv(client, (char*)&msg, sizeof(msg), 0);
-		if (ret_recv <= 0) {
-			std::cout << "recv failed: "<< GetLastError() << std::endl;
-			break;
+		char buf[1024];
+		size_t sz;
+		while (1) {
+			sz = recv(client, buf, sizeof(buf), 0);
+			if (sz <= 0) continue;
+			buf[sz] = '\0';
+			std::cout << buf << "\n";
 		}
+		std::cout << "Recv cp \n";
 
-		std::cout << msg.name << ": " << msg.text << std::endl;
+		//uMsg msg;
+		//int ret_recv = recv(client, (char*)&msg, sizeof(msg), 0);
+		//if (ret_recv <= 0) {
+		//	std::cout << "recv failed: "<< GetLastError() << std::endl;
+		//	break;
+		//}
+
+		//std::cout << msg.name << ": " << msg.text << std::endl;
 	}
-}*/
+}
 
 int main()
 {
@@ -104,19 +114,32 @@ int main()
 	//}
 
 	//// Recv server info
-	//HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
-	//if (!h_recvMes) {
-	//	std::cout << "Create thread failed : " << GetLastError() << std::endl;
-	//	return 1;
-	//}
+	HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)recvMessage, 0, 0, 0);
+	if (!h_recvMes) {
+		std::cout << "Create thread failed : " << GetLastError() << std::endl;
+		return 1;
+	}
 
-	//// Send msg
-	//while (1)
-	//{
+	// Send msg
+	while (1)
+	{
+		std::string content;
+		getline(std::cin, content);
+		if (content == "q") {
+			closesocket(client);
+			WSACleanup();
+			return 0;
+		}
+
+		//sendto(client, content.c_str(), sizeof(content), 0, (sockaddr *)&addrServer, sizeof(addrServer));
+		send(client, content.c_str(), sizeof(content), 0);
+	}
+	getchar();
 	//	std::string content;
 	//	getline(std::cin, content);
+	//	send(client, content.c_str(), sizeof(content), 0);
 
-	//	if (content == "quit") {
+	//	/*if (content == "quit") {
 	//		msg.type = 2;
 	//		send(client, (char*)&msg, sizeof(msg), 0);
 	//		error_send = GetLastError();
@@ -135,29 +158,12 @@ int main()
 	//	if (error_send != 0)
 	//	{
 	//		std::cout << "send failed: " << error_send << std::endl;
-	//	}
+	//	}*/
 	//}
 
 	//getchar();
-	//char buffer[1024];
-	int len;
-
-	while (1)
-	{
-		char buffer[] = "hello socket";
-		if (send(client, buffer, sizeof(buffer), 0) < 0)
-		{
-			perror("send");
-		}
-		if (len = recv(client, buffer, 1024*sizeof(char), 0) < 0)
-		{
-			perror("recv");
-		}
-		buffer[len] = '\0';
-		printf("recv string :%s\n", buffer);
-	}
-	closesocket(client);
 	//closeso(client);
+	//closesocket(client);
 	return 0;
 }
 

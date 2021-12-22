@@ -40,6 +40,7 @@ void conn_readcb(struct bufferevent *bev, void *);
 void conn_eventcb(struct bufferevent *bev, short, void *);
 string inttostr(int);
 void write_buffer(string&, struct bufferevent*, Header&);
+void startChat(struct bufferevent *bev);
 
 int main()
 {
@@ -76,69 +77,17 @@ int main()
 	event_base_dispatch(base);
 	event_base_free(base);
 
-	// Send Message
-	//while (1)
-	//{
-	//	cout << "Send Message" << endl;
-	//	std::string content;
-	//	getline(std::cin, content);
-	//	int len = 0;
-	//	static int num[10] = { 0 };
-	//	unsigned int toid = rand() % 200;
-	//	Header header;
-	//	header.targetID = toid;
-	//	header.length = content.size();
-	//	
-	//	write_buffer(content, bev, header);
-
-	//	int error_send = GetLastError();
-	//	if (error_send != 0)
-	//	{
-	//		std::cout << "send failed: " << error_send << std::endl;
-	//		//closesocket(client);
-	//		WSACleanup();
-	//		return 0;
-	//	}
-	//}
-
-	//getchar();
-
 	return 0;
 }
 
 void conn_writecb(struct bufferevent *bev, void *user_data) {
-	//Sleep(SEND_INTERVAL);
-	//int len = 0;
-	//static int num[10] = { 0 };
-	//unsigned int toid = rand() % 200 + 1;
-	//Header header;
 
-	//string msg = "hello";
-
-	//header.targetID = toid;
-	//header.length = msg.size();
-	//write_buffer(msg, bev, header);
-	//bufferevent_write(bev, "", 10);
-	/*while (true)
-	{
-		cout << "conn_writecb " << endl;
-		std::string content;
-		getline(std::cin, content);
-		int len = 0;
-		static int num[10] = { 0 };
-		unsigned int toid = rand() % 200;
-		Header header;
-		header.targetID = toid;
-		header.length = content.size();
-		
-		write_buffer(content, bev, header);
-	}*/
 }
 
 void write_buffer(string& msg, struct bufferevent* bev, Header& header) {
-	char send_msg[READ_SIZE] = { 0 };
-	char* ptr = send_msg;
-	int len = 0;
+	//char send_msg[READ_SIZE] = { 0 };
+	//char* ptr = send_msg;
+	//int len = 0;
 
 	//多发几次，便于测试大量数据
 	/*
@@ -148,13 +97,13 @@ void write_buffer(string& msg, struct bufferevent* bev, Header& header) {
 		memcpy(ptr + len, msg.c_str(), msg.size());
 		len += msg.size();
 	}*/
-	memcpy(ptr + len, &header, sizeof(Header));
-	len += sizeof(Header);
-	memcpy(ptr + len, msg.c_str(), msg.size());
-	len += msg.size();
-	if (bufferevent_write(bev, send_msg, len) < 0) {
-		cout << "data send error" << endl;
-	}
+	//memcpy(ptr + len, &header, sizeof(Header));
+	//len += sizeof(Header);
+	//memcpy(ptr + len, msg.c_str(), msg.size());
+	//len += msg.size();
+	//if (bufferevent_write(bev, send_msg, len) < 0) {
+	//	cout << "data send error" << endl;
+	//}
 }
 
 void conn_readcb(struct bufferevent *bev, void *user_data) {
@@ -166,31 +115,7 @@ void conn_readcb(struct bufferevent *bev, void *user_data) {
 	buf[sz] = '\0';
 	cout << "收到服务端来消息" << endl;
 	fprintf(stdout, "Read: %s\n", buf);
-
-	//while (sz >= MAX_PACKET_SIZE) {
-		//char msg[MAX_PACKET_SIZE] = { 0 };
-		//char *ptr = msg;
-		//bufferevent_read(bev, ptr, HEADER_LENGTH);
-
-		//unsigned int len = ((Header*)ptr)->length;
-		//unsigned int targetID = ((Header*)ptr)->targetID;
-		//unsigned int sourceID = ((Header*)ptr)->sourceID;
-
-		//ptr += HEADER_LENGTH;
-
-		//if (sz < len + HEADER_LENGTH) {
-		//	return;
-		//	//break;
-		//}
-
-		//bufferevent_read(bev, ptr, len);
-
-		//cout << "receive " << HEADER_LENGTH + strlen(ptr) << " bytes from client " << sourceID << endl;
-
-		//sz = evbuffer_get_length(input);
-	//}
 }
-
 
 
 void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
@@ -203,23 +128,31 @@ void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 	}
 	else if (events & BEV_EVENT_CONNECTED) {
 		cout << "Connect succeed" << endl;
-
-		string msg = "connect to server";
-		/*Header header;
-		header.targetID = 0;
-		header.length = msg.size();
-
-		write_buffer(msg, bev, header);*/
-
-		if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
-			cout << "data send error" << endl;
-		}
+		std::string content = "hello ";
+		bufferevent_write(bev, content.c_str(), sizeof(content));
+		//HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)startChat, bev, 0, 0);
+		//if (!h_recvMes) {
+		//	std::cout << "Create thread failed : " << GetLastError() << std::endl;
+		//	return;
+		//}
 		return;
 	}
 
 	bufferevent_free(bev);
 }
 
+void startChat(struct bufferevent *bev)
+{
+	// Send msg
+	//while (1)
+	//{
+	//	std::string content;
+	//	getline(std::cin, content);
+	//	bufferevent_write(bev, content.c_str(), sizeof(content));
+	//}
+	std::string content = "hello ";
+	bufferevent_write(bev, content.c_str(), sizeof(content));
+}
 
 string inttostr(int num) {
 	string result;
