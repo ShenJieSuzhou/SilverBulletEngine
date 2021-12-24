@@ -14,6 +14,7 @@
 #include <thread>
 #include <cstdio>
 #include <string>
+#include <thread>
 
 using namespace std;
 
@@ -40,7 +41,7 @@ void conn_readcb(struct bufferevent *bev, void *);
 void conn_eventcb(struct bufferevent *bev, short, void *);
 string inttostr(int);
 void write_buffer(string&, struct bufferevent*, Header&);
-void startChat(struct bufferevent *bev);
+void startChat(void *arg);
 
 int main()
 {
@@ -73,6 +74,13 @@ int main()
 		cout << "Connect failed" << endl;
 		return 1;
 	}
+
+	//HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)startChat, (void *)bev, 0, 0);
+	//if (!h_recvMes) {
+	//	std::cout << "Create thread failed : " << GetLastError() << std::endl;
+	//	return 0;
+	//}
+	std::thread((LPTHREAD_START_ROUTINE)startChat, (void *)bev).detach();
 
 	event_base_dispatch(base);
 	event_base_free(base);
@@ -116,6 +124,15 @@ void conn_readcb(struct bufferevent *bev, void *user_data) {
 	cout << "收到服务端来消息" << endl;
 	fprintf(stdout, "Read: %s\n", buf);
 }
+//
+//void set_tcp_no_delay(evutil_socket_t fd)
+//{
+//	int one = 1;
+//	setsockopt(fd, IPPROTO_TCP, TCP_NODELAY, &one, sizeof(one));
+//	int reuseaddr_on = 1;
+//	setsockopt(fd, SOL_SOCKET, SO_REUSEADDR, &reuseaddr_on,
+//		sizeof(reuseaddr_on));
+//}
 
 
 void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
@@ -128,30 +145,28 @@ void conn_eventcb(struct bufferevent *bev, short events, void *user_data)
 	}
 	else if (events & BEV_EVENT_CONNECTED) {
 		cout << "Connect succeed" << endl;
+		//evutil_socket_t fd = bufferevent_getfd(bev);
+		//set_tcp_no_delay(fd);
 		std::string content = "hello ";
 		bufferevent_write(bev, content.c_str(), sizeof(content));
-		//HANDLE h_recvMes = CreateThread(0, 0, (LPTHREAD_START_ROUTINE)startChat, bev, 0, 0);
-		//if (!h_recvMes) {
-		//	std::cout << "Create thread failed : " << GetLastError() << std::endl;
-		//	return;
-		//}
 		return;
 	}
 
 	bufferevent_free(bev);
 }
 
-void startChat(struct bufferevent *bev)
+void startChat(void *arg)
 {
-	// Send msg
-	//while (1)
-	//{
-	//	std::string content;
-	//	getline(std::cin, content);
-	//	bufferevent_write(bev, content.c_str(), sizeof(content));
-	//}
-	std::string content = "hello ";
-	bufferevent_write(bev, content.c_str(), sizeof(content));
+	struct bufferevent *bev = (struct bufferevent *)arg;
+	std::string content;
+	//Send msg
+	while (getline(std::cin, content))
+	{
+
+		bufferevent_write(bev, content.c_str(), sizeof(content));
+		//content = "Tom:" + content;
+		//evbuffer_add(bufferevent_get_output(bev), content.c_str(), content.size());
+	}
 }
 
 string inttostr(int num) {

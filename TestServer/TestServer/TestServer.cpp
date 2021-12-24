@@ -17,11 +17,7 @@
 
 using namespace std;
 
-typedef struct msg_header {
-	unsigned int targetID;
-	unsigned int sourceID;
-	unsigned int length;
-} Header;
+
 
 #define PORT 5555
 #define BUFFER_SIZE (16 * 1024)
@@ -31,14 +27,106 @@ typedef struct msg_header {
 #define HEADER_LENGTH 12
 #define DATA_LENGTH 1000
 
-const char ip_address[] = "127.0.0.1";
-map<unsigned int, bufferevent*> ClientMap;	//client id 对应的bufferevent
-int conectNumber = 0;
+typedef struct msg_header {
+	unsigned int targetID;
+	unsigned int sourceID;
+	unsigned int length;
+} Header;
 
-int dataSize = 0;
-int lastTime = 0;
-int receiveNumber = 0;
-int sendNumber = 0;
+struct mPoint
+{
+	int x;
+	int y;
+};
+
+// Message
+struct uMsg
+{
+	int type;
+	char name[64];
+	char text[512]; // text msg
+	mPoint *m_point;
+};
+
+typedef struct userClientNode
+{
+	int fd;
+
+	//struct event_base *evbase;
+
+	struct bufferevent *buf_ev;
+
+	//struct evbuffer *output_buffer;
+
+	struct uMsg *clientInfo;
+
+	userClientNode *next;
+
+} *ucnode_t;
+
+userClientNode *listHead;
+userClientNode *lp;
+
+// Insert Client to chain
+userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_base *evbase, struct bufferevent *buf_ev, struct evbuffer *output_buffer, uMsg *clientInfo)
+{
+	userClientNode *newNode = new userClientNode();
+	newNode->fd = client;
+	//newNode->evbase = evbase;
+	//newNode->buf_ev = buf_ev;
+	//newNode->output_buffer = output_buffer;
+	newNode->clientInfo = clientInfo;
+	userClientNode *p = head;
+
+	if (p == nullptr)
+	{
+		head = newNode;
+	}
+	else {
+		while (p->next != nullptr)
+		{
+			p = p->next;
+		}
+		p->next = newNode;
+	}
+
+	return head;
+}
+
+// Delete node 
+userClientNode *deleteNode(userClientNode *head, SOCKET client)
+{
+	userClientNode *p = head;
+	if (p == nullptr)
+	{
+		return head;
+	}
+
+	if (p->fd == client)
+	{
+		head = p->next;
+		delete p;
+		return head;
+	}
+
+	while (p->next != nullptr && p->next->fd != client)
+	{
+		p = p->next;
+	}
+
+	if (p->next == nullptr)
+	{
+		return head;
+	}
+
+	userClientNode *deleteNode = p->next;
+	p->next = deleteNode->next;
+	delete deleteNode;
+	return head;
+}
+
+
+const char ip_address[] = "127.0.0.1";
 
 void listener_cb(struct evconnlistener *bev, evutil_socket_t,
 	struct sockaddr *, int socklen, void *);
@@ -47,7 +135,7 @@ void conn_readcb(struct bufferevent *bev, void *);
 void conn_eventcb(struct bufferevent *bev, short, void *);
 unsigned int get_client_id(struct bufferevent *bev);
 string inttostr(int);
-void write_buffer(string&, struct bufferevent *bev, Header&);
+//void write_buffer(string&, struct bufferevent *bev, Header&);
 
 int main()
 {
@@ -79,8 +167,12 @@ int main()
 		return 1;
 	}
 
-	event_base_dispatch(base);
+	// Init client list
+	//listHead = new userClientNode();
+	//listHead->next = NULL;
+	//lp = listHead;
 
+	event_base_dispatch(base);
 	evconnlistener_free(listener);
 	event_base_free(base);
 
@@ -93,6 +185,12 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	struct event_base *base = (struct event_base *)user_data;
 	struct bufferevent *bev;
 
+	if (evutil_make_socket_nonblocking(fd) < 0)
+	{
+		perror("failed to set client socket to non-blocking");
+		return;
+	}
+
 	//BEV_OPT_CLOSE_ON_FREE close the file descriptor when this bufferevent is freed
 	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
 	if (!bev) {
@@ -101,10 +199,28 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 		return;
 	}
 
-	ClientMap[++conectNumber] = bev;
 	//read write event
 	bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, NULL);
 	bufferevent_enable(bev, EV_READ | EV_WRITE);
+
+	printf("Accepted connection from: fd = %u\n", fd);
+
+	//if ((cInfo->output_buffer = evbuffer_new()) == NULL) {
+	//	perror("client output buffer allocation failed");
+	//	return;
+	//}
+
+
+	//if ((cInfo->evbase = event_base_new()) == NULL) {
+	//	perror("client event_base creation failed");
+	//	return;
+	//}
+
+	//if ((cInfo->clientInfo = new uMsg()) == NULL)
+	//{
+	//	perror("client uMsg creation failed");
+	//	return;
+	//}
 
 	////send a message to client when connect is succeeded
 	//string msg = "connedted";
@@ -130,11 +246,14 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 //	write_buffer(msg, bev, header);
 //}
 
-// 收消息
+// Recv message from client
 void conn_readcb(struct bufferevent *bev, void *user_data) {
 	struct evbuffer *input = bufferevent_get_input(bev);
 	size_t sz = evbuffer_get_length(input);
-	unsigned int sourceID = get_client_id(bev);
+	//unsigned int sourceID = get_client_id(bev);
+
+
+
 
 	char buf[255];
 	bufferevent_read(bev, buf, sizeof(buf));
@@ -143,10 +262,22 @@ void conn_readcb(struct bufferevent *bev, void *user_data) {
 	fprintf(stdout, "Read: %s\n", buf);
 	string msg = "I am server";
 	
+	// Broadcast msg to all connected client except self
 	if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
 		cout << "server write error" << endl;
 	}
 	
+	// Create a client object
+	/*userClientNode *cInfo = new userClientNode();
+	cInfo->next = NULL;
+	if (cInfo == NULL)
+	{
+		perror("failed to allocate memory for client state");
+		evutil_closesocket(fd);
+		return;
+	}
+
+	cInfo->fd = fd;*/
 
 	//while (sz >= MAX_PACKET_SIZE) {
 //	char msg[MAX_PACKET_SIZE] = { 0 };
@@ -211,14 +342,14 @@ void conn_eventcb(struct bufferevent *bev, short events, void *user_data) {
 	bufferevent_free(bev);
 }
 
-unsigned int get_client_id(struct bufferevent* bev) {
-	for (auto p = ClientMap.begin(); p != ClientMap.end(); p++) {
-		if (p->second == bev) {
-			return p->first;
-		}
-	}
-	return 0;
-}
+//unsigned int get_client_id(struct bufferevent* bev) {
+//	for (auto p = ClientMap.begin(); p != ClientMap.end(); p++) {
+//		if (p->second == bev) {
+//			return p->first;
+//		}
+//	}
+//	return 0;
+//}
 
 void write_buffer(string& msg, struct bufferevent* bev, Header& header) {
 	char send_msg[BUFFER_SIZE] = { 0 };

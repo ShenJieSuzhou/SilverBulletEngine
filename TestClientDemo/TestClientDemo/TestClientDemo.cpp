@@ -33,6 +33,22 @@ struct uMsg
 	mPoint *m_point;
 };
 
+typedef struct userClientNode
+{
+	int fd;
+
+	//struct event_base *evbase;
+
+	//struct bufferevent *buf_ev;
+
+	//struct evbuffer *output_buffer;
+
+	struct uMsg *clientInfo;
+
+	userClientNode *next;
+
+} *ucnode_t;
+
 
 void recvMessage()
 {
@@ -123,16 +139,31 @@ int main()
 	// Send msg
 	while (1)
 	{
-		std::string content;
-		getline(std::cin, content);
-		if (content == "q") {
-			closesocket(client);
-			WSACleanup();
-			return 0;
-		}
+		//std::string content;
+		//getline(std::cin, content);
+		//if (content == "q") {
+		//	closesocket(client);
+		//	WSACleanup();
+		//	return 0;
+		//}
 
 		//sendto(client, content.c_str(), sizeof(content), 0, (sockaddr *)&addrServer, sizeof(addrServer));
-		send(client, content.c_str(), sizeof(content), 0);
+		//send(client, content.c_str(), sizeof(content), 0);
+		char temp[1000];
+		uMsg msg;
+		mPoint point;
+		point.x = 100;
+		point.y = 200;
+		msg.m_point = &point;
+		msg.type = 1;
+		strncpy(msg.name, "zhangsan", sizeof(msg.name));
+		strncpy(msg.text, "123456", sizeof(msg.text));
+
+		memset(temp, 0, sizeof(temp));
+		memcpy(temp, &msg, sizeof(uMsg));
+		send(client, temp, sizeof(uMsg), 0);
+
+		Sleep(2000);
 	}
 	getchar();
 	//	std::string content;
