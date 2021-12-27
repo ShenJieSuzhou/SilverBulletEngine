@@ -66,9 +66,9 @@ struct mPoint
 struct uMsg
 {
 	int type;
-	char name[64];
+	//char name[64];
 	char text[512]; // text msg
-	mPoint *m_point;
+	//mPoint *m_point;
 };
 
 // Client
