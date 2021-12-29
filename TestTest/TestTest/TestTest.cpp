@@ -24,7 +24,7 @@ typedef struct msg_header {
 	unsigned int length;
 } Header;
 
-#define PORT 8899
+#define PORT 9988
 #define BUFFER_SIZE (16 * 1024)
 #define READ_SIZE (16 *1024)
 #define SEND_INTERVAL 0

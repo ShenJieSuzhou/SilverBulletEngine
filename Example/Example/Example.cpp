@@ -2,19 +2,25 @@
 //
 
 #include <iostream>
-using namespace std;
-
+#include <stdio.h>
+#include <stdlib.h>
+#include <errno.h>
+#include <assert.h>
+#include <event.h>
 #include <event2/event.h>
-#include<event2/listener.h>
-#include<event2/bufferevent.h>
-#include<string>
-
+#include <event2/bufferevent.h>
+#include <event2/listener.h>
+#include <event2/util.h>
+#include <string>
 #include<map>
 #include<iterator>
-#include <winsock2.h>
-#include <ws2tcpip.h>
 
-#pragma comment (lib, "Ws2_32.lib")
+//#include <winsock2.h>
+//#include <ws2tcpip.h>
+
+//#pragma comment (lib, "Ws2_32.lib")
+
+using namespace std;
 
 class Channel
 {
@@ -146,7 +152,7 @@ void eventcb(struct bufferevent *bev, short what, void *ctx)
 	Channel * ch = (Channel *)ctx;
 	if (what & BEV_EVENT_CONNECTED)
 	{
-		cout << "connect操作完成" << endl;
+		cout << "connect 操作完成" << endl;
 	}
 	else
 	{
@@ -200,6 +206,12 @@ void listen_cb(struct evconnlistener* listener, /*监听器*/
 	string cli_addr = sendBuf;
 	printf("新连接的客户端ip是%s\n", sendBuf);
 
+	if (evutil_make_socket_nonblocking(newfd) < 0)
+	{
+		perror("failed to set client socket to non-blocking");
+		return;
+	}
+
 	// 获取base集合
 	struct event_base* base = (struct event_base*)ptr;
 	//struct event_base* base = evconnlistener_get_base(listener);//方法2
@@ -237,8 +249,6 @@ void listen_cb(struct evconnlistener* listener, /*监听器*/
 	chmap[cli_addr] = ch;
 }
 
-
-
 int main()
 {
 	// Initialize Winsock
@@ -251,6 +261,7 @@ int main()
 		return 1;
 	}
 
+	cout << "Server begin running!" << endl;
 	// 类似创建一个epoll或者select对象，默认下linux下应该epoll
    // event_base是一个事件的集合
    // 在libevent中，事件指一件即将要发生事情，evbase就是用来监控这些事件的
@@ -258,6 +269,7 @@ int main()
 	struct event_base * base = event_base_new();
 
 	struct sockaddr_in addr;
+	memset(&addr, 0, sizeof(addr));
 	addr.sin_family = AF_INET;
 	addr.sin_port = htons(9988);
 	addr.sin_addr.s_addr = INADDR_ANY;
@@ -274,6 +286,10 @@ int main()
 		(struct sockaddr*)&addr,    //  地址
 		sizeof(addr));
 	// 创建完毕后，base集合中会有listener
+	if (!listener) {
+		cout << "Could not create a listener" << endl;
+		return 1;
+	}
 
 	// 进入未决状态,使listener被启动, 只有pending状态的event，才可能被激活
 	evconnlistener_enable(listener);
@@ -283,7 +299,6 @@ int main()
 
 	// 从上一个函数出来后，说明程序快要结束了，这里用来释放内存空间
 	event_base_free(base);
-
 
 	return 0;
 }

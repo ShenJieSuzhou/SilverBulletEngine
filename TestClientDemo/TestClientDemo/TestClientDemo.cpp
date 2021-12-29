@@ -99,7 +99,7 @@ int main()
 	sockaddr_in addrServer;
 	addrServer.sin_family = AF_INET;
 	InetPton(AF_INET, "127.0.0.1", &addrServer.sin_addr.s_addr);
-	addrServer.sin_port = htons(5555);
+	addrServer.sin_port = htons(9988);
 	memset(&(addrServer.sin_zero), '\0', 8);
 
 	std::cout << "Connecting..." << std::endl;
@@ -139,31 +139,31 @@ int main()
 	// Send msg
 	while (1)
 	{
-		//std::string content;
-		//getline(std::cin, content);
-		//if (content == "q") {
-		//	closesocket(client);
-		//	WSACleanup();
-		//	return 0;
-		//}
+		std::string content;
+		getline(std::cin, content);
+		if (content == "q") {
+			closesocket(client);
+			WSACleanup();
+			return 0;
+		}
 
 		//sendto(client, content.c_str(), sizeof(content), 0, (sockaddr *)&addrServer, sizeof(addrServer));
-		//send(client, content.c_str(), sizeof(content), 0);
-		char temp[1000];
-		uMsg msg;
-		mPoint point;
-		point.x = 100;
-		point.y = 200;
-		msg.m_point = &point;
-		msg.type = 1;
-		strncpy(msg.name, "zhangsan", sizeof(msg.name));
-		strncpy(msg.text, "123456", sizeof(msg.text));
+		send(client, content.c_str(), sizeof(content), 0);
+		//char temp[1000];
+		//uMsg msg;
+		//mPoint point;
+		//point.x = 100;
+		//point.y = 200;
+		//msg.m_point = &point;
+		//msg.type = 1;
+		//strncpy(msg.name, "zhangsan", sizeof(msg.name));
+		//strncpy(msg.text, "123456", sizeof(msg.text));
 
-		memset(temp, 0, sizeof(temp));
-		memcpy(temp, &msg, sizeof(uMsg));
-		send(client, temp, sizeof(uMsg), 0);
+		//memset(temp, 0, sizeof(temp));
+		//memcpy(temp, &msg, sizeof(uMsg));
+		//send(client, temp, sizeof(uMsg), 0);
 
-		Sleep(2000);
+		//Sleep(2000);
 	}
 	getchar();
 	//	std::string content;
