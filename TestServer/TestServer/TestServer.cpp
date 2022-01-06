@@ -24,53 +24,26 @@ using namespace std;
 #define HEADER_LENGTH 12
 #define DATA_LENGTH 1000
 
-typedef struct msg_header {
-	unsigned int targetID;
-	unsigned int sourceID;
-	unsigned int length;
-} Header;
-
-struct mPoint
-{
-	int x;
-	int y;
-};
 
 // Message
-//struct uMsg
-//{
-//	int type;
-//	char name[64];
-//	char text[512]; // text msg
-//	mPoint *m_point;
-//};
-
 struct uMsg
 {
 	int type;
 	int x;
 	int y;
 	int z;
-	//char name[64];
-	//char text[512]; // text msg
-	//mPoint *m_point;
 };
 
-typedef struct userClientNode
+struct userClientNode
 {
 	int fd;
 
-	//struct event_base *evbase;
-
-	struct bufferevent *buf_ev;
-
-	//struct evbuffer *output_buffer;
+	struct bufferevent *bev;
 
 	struct uMsg *clientInfo;
 
 	userClientNode *next;
-
-} *ucnode_t;
+};
 
 userClientNode *listHead;
 userClientNode *lp;
