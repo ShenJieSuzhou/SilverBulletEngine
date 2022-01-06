@@ -1,32 +1,11 @@
 ﻿// SilverBulletEngine.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
 //
 
-#undef UNICODE
+//#undef UNICODE
 
-#define WIN32_LEAN_AND_MEAN
+//#define WIN32_LEAN_AND_MEAN
 
 #include <iostream>
-//#include <sys/types.h>
-//#include <winsock2.h>
-//#include <winsock.h>
-//#include <ws2tcpip.h>
-//#include <Windows.h>
-//#include <thread>
-//#include <cstdio>
-//#include <stdlib.h>
-//#include <stdio.h>
-//#include <fcntl.h>
-//#include <errno.h>
-//#include <string.h>
-//#include <fstream>
-//#include <event.h>
-//#include <signal.h>
-//#include <stdarg.h>
-
-//#include "WorkQueue.h"
-
-//using namespace std;
-
 #include <stdio.h>
 #include <stdlib.h>
 #include <errno.h>
@@ -48,36 +27,30 @@
 
 #define NUM_THREADS 8
 
-//#define errorOut(...) {\
-//	fprintf(stderr, "%s:%d: %s():\t", __FILE__, __LINE__, __FUNCTION__);\
-//}
-
 #pragma comment (lib, "Ws2_32.lib")
 
-#pragma region  LogicDemo1
- 
-struct mPoint
-{
-	int x; 
-	int y;
-};
+//struct mPoint
+//{
+//	int x; 
+//	int y;
+//};
 
 // Message
-struct uMsg
-{
-	int type;
-	//char name[64];
-	char text[512]; // text msg
-	//mPoint *m_point;
-};
+//struct uMsg
+//{
+//	int type;
+//	//char name[64];
+//	char text[512]; // text msg
+//	//mPoint *m_point;
+//};
 
 // Client
-struct clientInfo 
-{
-	evutil_socket_t fd;
-	sockaddr_in saddr;
-	uMsg msg;
-};
+//struct clientInfo 
+//{
+//	evutil_socket_t fd;
+//	sockaddr_in saddr;
+//	uMsg msg;
+//};
 
 typedef struct userClientNode
 {
@@ -108,10 +81,7 @@ static struct event_base *evbase_accept;
 
 static char g_szReadMsg[256] = { 0 };
 
-#pragma endregion
 
-
-#pragma region chain node logic
 
 // Insert Client to chain
 userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_base *evbase, struct bufferevent *buf_ev, struct evbuffer *output_buffer)
@@ -196,53 +166,6 @@ void buffered_on_read(struct bufferevent *bev, void *arg)
 		bufferevent_read(bev, g_szReadMsg, sz);
 		printf("ser:>>%s\n", g_szReadMsg);
 	}
-
-	/*while (1)
-	{
-		n = bufferevent_read(bev, data, sizeof(data));
-		if (n < 0)
-		{
-			break;
-		}
-
-		// Send data to all connected clients 
-		lp = listHead;
-		while (lp)
-		{
-			//if (lp->fd != this_client->fd) {
-				bufferevent_write(lp->buf_ev, data, n);
-			//}
-			lp = lp->next;
-		}
-	}
-
-	//#define MAX_LINE    256
-	//char line[MAX_LINE + 1];
-	//int n;
-
-	//evutil_socket_t fd = bufferevent_getfd(bev);
-
-	//while (n = bufferevent_read(bev, line, MAX_LINE), n > 0) {
-	//	line[n] = '\0';
-	//	printf("fd=%u, read line: %s\n", fd, line);
-
-	//	bufferevent_write(bev, line, n);
-	//}
-
-	//client *cli = (client *)arg;
-	//char data[4096];
-	//int nbytes;
-
-	//while ((nbytes = EVBUFFER_LENGTH(bev->input)) > 0) {
-	//	if (nbytes > 4096) nbytes = 4096;
-	//	evbuffer_remove(bev->input, data, nbytes);
-	//	evbuffer_add(cli->output_buffer, data, nbytes);
-	//}
-
-	//if (bufferevent_write_buffer(bev, cli->output_buffer)) {
-	//	errorOut("Error sending data to client on fd %d\n", cli->fd);
-	//	//closeClient(cli);
-	//}*/
 }
 
 void buffered_on_write(struct bufferevent *bev, void *arg) 
@@ -279,7 +202,7 @@ void buffered_on_error(struct bufferevent *bev, short event, void *arg)
  
 
 // Ready to be accept
-void on_accept(int fd, short ev, void *arg) 
+void on_accept(evutil_socket_t fd, short ev, void *arg)
 {
 	struct event_base *base = (struct event_base *)arg;
 	evutil_socket_t client_fd;
@@ -293,12 +216,6 @@ void on_accept(int fd, short ev, void *arg)
 		perror("accept failed");
 		return;
 	}
-
-	//if (client_fd > FD_SETSIZE)
-	//{
-	//	perror("client_fd > FD_SETSIZE\n");
-	//	return;
-	//}
 
 	if (evutil_make_socket_nonblocking(client_fd) < 0)
 	{
@@ -436,11 +353,7 @@ void killServer() {
 	}
 	fprintf(stdout, "Stopping workers.\n");
 }
-//
-//static void sigHandler(int signal) {
-//	fprintf(stdout, "Received signal %d.  Shutting down.\n", signal);
-//	killServer();
-//}
+
 
 int main() {
 	return runServer();

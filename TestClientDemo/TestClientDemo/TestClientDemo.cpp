@@ -28,26 +28,32 @@ struct mPoint
 struct uMsg
 {
 	int type;
-	char name[64];
-	char text[512]; // text msg
-	mPoint *m_point;
+	int x;
+	int y;
+	int z;
+	//int length;
+	//char content[4096];
+	//const char *content;
+	//char name[64];
+	//char text[512]; // text msg
+	//mPoint *m_point;
 };
 
-typedef struct userClientNode
-{
-	int fd;
-
-	//struct event_base *evbase;
-
-	//struct bufferevent *buf_ev;
-
-	//struct evbuffer *output_buffer;
-
-	struct uMsg *clientInfo;
-
-	userClientNode *next;
-
-} *ucnode_t;
+//typedef struct userClientNode
+//{
+//	int fd;
+//
+//	//struct event_base *evbase;
+//
+//	//struct bufferevent *buf_ev;
+//
+//	//struct evbuffer *output_buffer;
+//
+//	struct uMsg *clientInfo;
+//
+//	userClientNode *next;
+//
+//} *ucnode_t;
 
 
 void recvMessage()
@@ -99,7 +105,7 @@ int main()
 	sockaddr_in addrServer;
 	addrServer.sin_family = AF_INET;
 	InetPton(AF_INET, "127.0.0.1", &addrServer.sin_addr.s_addr);
-	addrServer.sin_port = htons(9988);
+	addrServer.sin_port = htons(5555);
 	memset(&(addrServer.sin_zero), '\0', 8);
 
 	std::cout << "Connecting..." << std::endl;
@@ -136,19 +142,42 @@ int main()
 		return 1;
 	}
 
+	int inc = 0;
 	// Send msg
 	while (1)
 	{
-		std::string content;
-		getline(std::cin, content);
-		if (content == "q") {
-			closesocket(client);
-			WSACleanup();
-			return 0;
-		}
+		//std::string content;
+		//getline(std::cin, content);
+		//if (content == "q") {
+		//	closesocket(client);
+		//	WSACleanup();
+		//	return 0;
+		//}
 
+		uMsg msg;
+		msg.type = inc;
+		msg.x = inc;
+		msg.y = inc;
+		msg.z = inc;
+		//msg.type = 1;
+		/*msg.length = content.size();
+		strcpy_s(msg.content, content.c_str());*/
+		//strcpy(msg.content, content.c_str());
+		//msg.content = content.c_str();
+		//msg.content = content.c_str();
+		send(client, (char*)&msg, sizeof(uMsg), 0);
+		inc = inc + 1;
+
+		//char* buffer = new char[sizeof(uMsg)];
+		//memcpy(buffer, &msg, sizeof(uMsg));
+
+		//send(client, buffer, sizeof(uMsg), 0);
+
+		//send(client, (char*)msg.type, sizeof(int), 0);
+		//send(client, (char*)msg.length, sizeof(int), 0);
+		//send(client, msg.content, msg.length, 0);
 		//sendto(client, content.c_str(), sizeof(content), 0, (sockaddr *)&addrServer, sizeof(addrServer));
-		send(client, content.c_str(), sizeof(content), 0);
+		//send(client, content.c_str(), sizeof(content), 0);
 		//char temp[1000];
 		//uMsg msg;
 		//mPoint point;
@@ -163,9 +192,9 @@ int main()
 		//memcpy(temp, &msg, sizeof(uMsg));
 		//send(client, temp, sizeof(uMsg), 0);
 
-		//Sleep(2000);
+		Sleep(1000);
 	}
-	getchar();
+	//getchar();
 	//	std::string content;
 	//	getline(std::cin, content);
 	//	send(client, content.c_str(), sizeof(content), 0);

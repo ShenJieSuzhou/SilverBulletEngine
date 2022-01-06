@@ -23,7 +23,7 @@
     <ProjectGuid>{5DBD2057-2A07-420F-942D-C24F5FBF570D}</ProjectGuid>
     <Keyword>Win32Proj</Keyword>
     <RootNamespace>TestServer</RootNamespace>
-    <WindowsTargetPlatformVersion>10.0.17763.0</WindowsTargetPlatformVersion>
+    <WindowsTargetPlatformVersion>10.0.16299.0</WindowsTargetPlatformVersion>
   </PropertyGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.Default.props" />
   <PropertyGroup Condition="'$(Configuration)|$(Platform)'=='Debug|Win32'" Label="Configuration">
@@ -158,12 +158,12 @@
   </ItemGroup>
   <Import Project="$(VCTargetsPath)\Microsoft.Cpp.targets" />
   <ImportGroup Label="ExtensionTargets">
-    <Import Project="..\packages\libevent_vc120.2.1.4.0\build\native\libevent_vc120.targets" Condition="Exists('..\packages\libevent_vc120.2.1.4.0\build\native\libevent_vc120.targets')" />
+    <Import Project="..\packages\libevent2-vc140.2.1.8\build\native\libevent2-vc140.targets" Condition="Exists('..\packages\libevent2-vc140.2.1.8\build\native\libevent2-vc140.targets')" />
   </ImportGroup>
   <Target Name="EnsureNuGetPackageBuildImports" BeforeTargets="PrepareForBuild">
     <PropertyGroup>
       <ErrorText>This project references NuGet package(s) that are missing on this computer. Use NuGet Package Restore to download them.  For more information, see http://go.microsoft.com/fwlink/?LinkID=322105. The missing file is {0}.</ErrorText>
     </PropertyGroup>
-    <Error Condition="!Exists('..\packages\libevent_vc120.2.1.4.0\build\native\libevent_vc120.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libevent_vc120.2.1.4.0\build\native\libevent_vc120.targets'))" />
+    <Error Condition="!Exists('..\packages\libevent2-vc140.2.1.8\build\native\libevent2-vc140.targets')" Text="$([System.String]::Format('$(ErrorText)', '..\packages\libevent2-vc140.2.1.8\build\native\libevent2-vc140.targets'))" />
   </Target>
 </Project>

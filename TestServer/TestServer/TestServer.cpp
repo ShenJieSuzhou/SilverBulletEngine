@@ -4,20 +4,17 @@
 #include <errno.h>
 #include <assert.h>
 #include <event.h>
-#include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
 #include <event2/util.h>
 #include <thread>
+#include <event2/event.h>
 
 #include <vector>
 #include <map>
 #include <string>
 
-
 using namespace std;
-
-
 
 #define PORT 5555
 #define BUFFER_SIZE (16 * 1024)
@@ -40,12 +37,23 @@ struct mPoint
 };
 
 // Message
+//struct uMsg
+//{
+//	int type;
+//	char name[64];
+//	char text[512]; // text msg
+//	mPoint *m_point;
+//};
+
 struct uMsg
 {
 	int type;
-	char name[64];
-	char text[512]; // text msg
-	mPoint *m_point;
+	int x;
+	int y;
+	int z;
+	//char name[64];
+	//char text[512]; // text msg
+	//mPoint *m_point;
 };
 
 typedef struct userClientNode
@@ -72,7 +80,7 @@ userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_bas
 {
 	userClientNode *newNode = new userClientNode();
 	newNode->fd = client;
-	//newNode->evbase = evbase;
+	//newNode->evbase = evbase; 
 	//newNode->buf_ev = buf_ev;
 	//newNode->output_buffer = output_buffer;
 	newNode->clientInfo = clientInfo;
@@ -135,6 +143,7 @@ void conn_readcb(struct bufferevent *bev, void *);
 void conn_eventcb(struct bufferevent *bev, short, void *);
 unsigned int get_client_id(struct bufferevent *bev);
 string inttostr(int);
+void readHeader(struct bufferevent * bev, struct uMsg* msg);
 //void write_buffer(string&, struct bufferevent *bev, Header&);
 
 int main()
@@ -247,87 +256,85 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 //}
 
 // Recv message from client
-void conn_readcb(struct bufferevent *bev, void *user_data) {
+void conn_readcb(struct bufferevent *bev, void *arg) {
+
 	struct evbuffer *input = bufferevent_get_input(bev);
 	size_t sz = evbuffer_get_length(input);
-	//unsigned int sourceID = get_client_id(bev);
-
-
-
-
-	char buf[255];
-	bufferevent_read(bev, buf, sizeof(buf));
-	buf[sz] = '\0';
-	cout << "收到客户端来消息" << endl;
-	fprintf(stdout, "Read: %s\n", buf);
-	string msg = "I am server";
-	
-	// Broadcast msg to all connected client except self
-	if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
-		cout << "server write error" << endl;
-	}
-	
-	// Create a client object
-	/*userClientNode *cInfo = new userClientNode();
-	cInfo->next = NULL;
-	if (cInfo == NULL)
+	uMsg *msg = new uMsg;
+	int type = 0, x, y, z;
+	int readSize = 0;
+	readSize += bufferevent_read(bev, &type, sizeof(int));
+	if (readSize == 4)   //数据头读完了
 	{
-		perror("failed to allocate memory for client state");
-		evutil_closesocket(fd);
-		return;
+		//获得有效数据的大小
+		msg->type = type;
+	}
+	readSize += bufferevent_read(bev, &x, sizeof(int));
+	if (readSize == 8)   //数据头读完了
+	{
+		//获得有效数据的大小
+		msg->x = x;
+	}
+	readSize += bufferevent_read(bev, &y, sizeof(int));
+	if (readSize == 12)   //数据头读完了
+	{
+		//获得有效数据的大小
+		msg->y = y;
+	}
+	readSize += bufferevent_read(bev, &z, sizeof(int));
+	if (readSize == 16)   //数据头读完了
+	{
+		//获得有效数据的大小
+		msg->z = z;
 	}
 
-	cInfo->fd = fd;*/
+	printf("坐标：%u:%u:%u \n", msg->x, msg->y, msg->z);
 
-	//while (sz >= MAX_PACKET_SIZE) {
-//	char msg[MAX_PACKET_SIZE] = { 0 };
-//	char *ptr = msg;
-//	bufferevent_read(bev, ptr, HEADER_LENGTH);
+	//readHeader(bev, msg);
+	
 
 
-//	unsigned int len = ((Header*)ptr)->length;
-//	unsigned int targetID = ((Header*)ptr)->targetID;
-//	((Header*)ptr)->sourceID = sourceID;
 
-//	ptr += HEADER_LENGTH;
+	////unsigned int sourceID = get_client_id(bev);
 
-//	if (sz < len + HEADER_LENGTH) {
-//		return;
-//		//break;
-//	}
 
-//	bufferevent_read(bev, ptr, len);
+	//char buf[255];
+	//bufferevent_read(bev, buf, sizeof(buf));
+	//buf[sz] = '\0';
+	//cout << "收到客户端来消息" << endl;
+	//fprintf(stdout, "Read: %s\n", buf);
+	//string msg = "I am server";
+	//
+	//// Broadcast msg to all connected client except self
+	//if (bufferevent_write(bev, msg.c_str(), sizeof(msg)) < 0) {
+	//	cout << "server write error" << endl;
+	//}
+}
 
-//	receiveNumber++;
-//	dataSize += len + HEADER_LENGTH;
+//读取数据头
+void readHeader(struct bufferevent * bev, struct uMsg* msg)
+{
+	int id = 0;
+	int headerSize = bufferevent_read(bev, &id, 4);
+	if (headerSize == 4)   //数据头读完了
+	{
+		//获得有效数据的大小
+		msg->type = id;
+	}
+	//int len = 0;
+	//int length = bufferevent_read(bev, &len, 4);
+	//msg->length = len;
 
-//	if (ClientMap.find(targetID) != ClientMap.end()) {
-//		sendNumber++;
-//		//bufferevent_write(ClientMap[targetID], msg, len + HEADER_LENGTH);
-//	}
-//	else {
-//		//can't find
-//	}
-//	sz = evbuffer_get_length(input);
-//}
+	struct evbuffer *input = bufferevent_get_input(bev);
+	size_t sz = evbuffer_get_length(input);
 
-////calculate the speed of data and packet
-//clock_t nowtime = clock();
-//if (lastTime == 0) {
-//	lastTime = nowtime;
-//}
-//else {
-//	cout << "client number: " << ClientMap.size() << " ";
-//	cout << "data speed: " << (double)dataSize / (nowtime - lastTime) << "k/s ";
-//	cout << "packet speed: receive " << (double)receiveNumber / (nowtime - lastTime) << "k/s ";
-//	cout << "send " << (double)sendNumber / (nowtime - lastTime) << "k/s" << endl;
-//	if (nowtime - lastTime > TIME_INTERVAL) {
-//		dataSize = 0;
-//		lastTime = nowtime;
-//		receiveNumber = 0;
-//		sendNumber = 0;
-//	}
-//}
+	char msg1[256];
+	int size = bufferevent_read(bev, msg1, id);
+	msg1[id] = '\0';
+	//send_msg[len] = '\0';
+	//msg->content = msg;
+
+
 }
 
 
