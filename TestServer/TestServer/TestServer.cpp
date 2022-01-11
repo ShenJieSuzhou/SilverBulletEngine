@@ -35,28 +35,29 @@ struct userClientNode
 	int fd;
 	string client_ip;
 	struct bufferevent *bev;
-	struct uMsg *clientInfo;
+	//struct uMsg *clientInfo;
 	userClientNode *next;
 };
 
 userClientNode *listHead;
-userClientNode *lp;
 
 // Insert Client to chain
-userClientNode *insertNode(userClientNode *head, SOCKET client, struct bufferevent *buf_ev, uMsg *clientInfo)
+userClientNode *insertNode(userClientNode *head, SOCKET client, struct bufferevent *buf_ev, string ip)
 {
 	userClientNode *newNode = new userClientNode();
 	newNode->fd = client;
 	newNode->bev = buf_ev;
-	newNode->clientInfo = clientInfo;
+	newNode->client_ip = ip;
+	newNode->next = NULL;
 	userClientNode *p = head;
 
-	if (p == nullptr)
+	if (p == NULL)
 	{
 		head = newNode;
 	}
-	else {
-		while (p->next != nullptr)
+	else 
+	{
+		while (p->next != NULL)
 		{
 			p = p->next;
 		}
@@ -143,9 +144,8 @@ int main()
 	}
 
 	// Init client list
-	listHead = new userClientNode();
-	listHead->next = NULL;
-	lp = listHead;
+	//listHead = new userClientNode();
+	listHead = NULL;
 
 	event_base_dispatch(base);
 	evconnlistener_free(listener);
@@ -154,8 +154,11 @@ int main()
 	return 0;
 }
 
-void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
-	struct sockaddr *sa, int socklen, void *user_data) 
+void listener_cb(struct evconnlistener *listener, 
+	evutil_socket_t fd,
+	struct sockaddr *sa, 
+	int socklen, 
+	void *user_data) 
 {
 	cout << "Detect an connection" << endl;
 	// Get ip address
@@ -199,11 +202,11 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, cInfo);
 	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
+	// Insert node to client list 
+	listHead = insertNode(listHead, cInfo->fd, cInfo->bev, cInfo->client_ip);
+
 	// Notify new client enter room
 	newUserOnline(cInfo);
-
-	// Insert node to client list 
-	insertNode(listHead, cInfo->fd, cInfo->bev, NULL);
 }
 
 void newUserOnline(userClientNode *node) 
@@ -212,9 +215,21 @@ void newUserOnline(userClientNode *node)
 	// clients ip to new client
 	userClientNode *newNode = node;
 	userClientNode *curr = listHead;
+
+	if (curr == NULL)
+	{
+		return;
+	}
+
 	while (curr != NULL)
 	{
 		userClientNode *oldNode = curr;
+		if (oldNode->client_ip == "" || oldNode->fd == node->fd)
+		{
+			curr = curr->next;
+			continue;
+		}
+
 		// Old client ip
 		const char *oldIp = oldNode->client_ip.c_str();
 		// New client ip
@@ -223,19 +238,19 @@ void newUserOnline(userClientNode *node)
 		// Message length
 		uint32_t len = 0;
 		len = strlen(oldIp);
-		len = htonl(len);
+		//len = htonl(len);
 		
 		// if type == 200, represent new user online
 		int type = 200;
 		bufferevent_write(node->bev, (char*)&type, sizeof(int));
 		bufferevent_write(node->bev, (char*)&len, sizeof(int));
-		bufferevent_write(node->bev, oldIp, len);
+		bufferevent_write(node->bev, oldIp, strlen(oldIp));
 
 		len = strlen(newIp);
-		len = htonl(len);
+		//len = htonl(len);
 		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
 		bufferevent_write(oldNode->bev, (char*)&len, sizeof(int));
-		bufferevent_write(oldNode->bev, newIp, len);
+		bufferevent_write(oldNode->bev, newIp, strlen(newIp));
 
 		curr = curr->next;
 	}
@@ -311,7 +326,7 @@ void conn_eventcb(struct bufferevent *bev, short events, void *arg) {
 	evutil_socket_t fd = bufferevent_getfd(bev);
 	userClientNode *cli = (userClientNode *)arg;
 	bufferevent_free(cli->bev);
-	deleteNode(listHead, cli->fd);
+	listHead = deleteNode(listHead, cli->fd);
 	
 	evutil_closesocket(cli->fd);
 	cli->fd = -1;

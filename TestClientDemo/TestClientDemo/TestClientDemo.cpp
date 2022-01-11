@@ -59,26 +59,50 @@ struct uMsg
 void recvMessage()
 {
 	while (1) {
-		char buf[1024];
-		size_t sz;
-		while (1) {
-			sz = recv(client, buf, sizeof(buf), 0);
-			if (sz <= 0) continue;
-			buf[sz] = '\0';
-			std::cout << buf << "\n";
+		int type;
+		size_t sz = recv(client, (char *)&type, sizeof(int), 0);
+		if (sz <= 0)
+		{	
+			std::cout << "recv failed: " << GetLastError() << std::endl;
+			break;
 		}
-		std::cout << "Recv cp \n";
 
-		//uMsg msg;
-		//int ret_recv = recv(client, (char*)&msg, sizeof(msg), 0);
-		//if (ret_recv <= 0) {
-		//	std::cout << "recv failed: "<< GetLastError() << std::endl;
-		//	break;
-		//}
-
-		//std::cout << msg.name << ": " << msg.text << std::endl;
+		// 新用户上线
+		if (type == 200)
+		{
+			int len = 0;
+			recv(client, (char *)&len, sizeof(int), 0);
+			char *buf = new char(len + 1);
+			recv(client, buf, len, 0);
+			buf[len] = '\0';
+			printf("新用户 ip 地址: %s\n", buf);
+		}
+		else if (type == 201)
+		{
+			// 坐标
+		}
 	}
+
+	/*char buf[1024];
+	size_t sz;
+	while (1) {
+	sz = recv(client, buf, sizeof(buf), 0);
+	if (sz <= 0) continue;
+	buf[sz] = '\0';
+	std::cout << buf << "\n";
+	}
+	std::cout << "Recv cp \n";*/
+
+	//uMsg msg;
+	//int ret_recv = recv(client, (char*)&msg, sizeof(msg), 0);
+	//if (ret_recv <= 0) {
+	//	std::cout << "recv failed: "<< GetLastError() << std::endl;
+	//	break;
+	//}
+
+	//std::cout << msg.name << ": " << msg.text << std::endl;
 }
+
 
 int main()
 {
@@ -155,7 +179,7 @@ int main()
 		//}
 
 		uMsg msg;
-		msg.type = inc;
+		msg.type = 201;
 		msg.x = inc;
 		msg.y = inc;
 		msg.z = inc;
