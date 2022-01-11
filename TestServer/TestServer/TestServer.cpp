@@ -7,11 +7,7 @@
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
 #include <event2/util.h>
-#include <thread>
 #include <event2/event.h>
-
-#include <vector>
-#include <map>
 #include <string>
 
 using namespace std;
@@ -107,10 +103,12 @@ const char ip_address[] = "127.0.0.1";
 
 void listener_cb(struct evconnlistener *bev, evutil_socket_t,
 	struct sockaddr *, int socklen, void *);
-//void conn_writecb(struct bufferevent *bev, void *);
 void conn_readcb(struct bufferevent *bev, void *);
 void conn_eventcb(struct bufferevent *bev, short, void *);
-void newClientOnline(userClientNode *node);
+void newUserOnline(userClientNode *node);
+
+
+//void conn_writecb(struct bufferevent *bev, void *);
 //unsigned int get_client_id(struct bufferevent *bev);
 //void readHeader(struct bufferevent * bev, struct uMsg* msg);
 
@@ -202,14 +200,13 @@ void listener_cb(struct evconnlistener *listener, evutil_socket_t fd,
 	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
 	// Notify new client enter room
-	newClientOnline(cInfo);
+	newUserOnline(cInfo);
 
 	// Insert node to client list 
 	insertNode(listHead, cInfo->fd, cInfo->bev, NULL);
 }
 
-
-void newClientOnline(userClientNode *node) 
+void newUserOnline(userClientNode *node) 
 {
 	// Revise list and send new client ip to old connected clients, also send old connected 
 	// clients ip to new client
@@ -222,10 +219,23 @@ void newClientOnline(userClientNode *node)
 		const char *oldIp = oldNode->client_ip.c_str();
 		// New client ip
 		const char *newIp = newNode->client_ip.c_str();
-		// Message len
+
+		// Message length
 		uint32_t len = 0;
+		len = strlen(oldIp);
+		len = htonl(len);
+		
+		// if type == 200, represent new user online
+		int type = 200;
+		bufferevent_write(node->bev, (char*)&type, sizeof(int));
+		bufferevent_write(node->bev, (char*)&len, sizeof(int));
+		bufferevent_write(node->bev, oldIp, len);
 
-
+		len = strlen(newIp);
+		len = htonl(len);
+		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
+		bufferevent_write(oldNode->bev, (char*)&len, sizeof(int));
+		bufferevent_write(oldNode->bev, newIp, len);
 
 		curr = curr->next;
 	}
@@ -286,7 +296,7 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 }
 
 
-void conn_eventcb(struct bufferevent *bev, short events, void *user_data) {
+void conn_eventcb(struct bufferevent *bev, short events, void *arg) {
 	if (events & BEV_EVENT_EOF) {
 		cout << "Connection closed" << endl;
 	}
@@ -299,7 +309,7 @@ void conn_eventcb(struct bufferevent *bev, short events, void *user_data) {
 	}
 
 	evutil_socket_t fd = bufferevent_getfd(bev);
-	userClientNode *cli = (userClientNode *)user_data;
+	userClientNode *cli = (userClientNode *)arg;
 	bufferevent_free(cli->bev);
 	deleteNode(listHead, cli->fd);
 	
