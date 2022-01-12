@@ -1,9 +1,4 @@
 ﻿// SilverBulletEngine.cpp : 此文件包含 "main" 函数。程序执行将在此处开始并结束。
-//
-
-//#undef UNICODE
-
-//#define WIN32_LEAN_AND_MEAN
 
 #include <iostream>
 #include <stdio.h>
@@ -11,94 +6,53 @@
 #include <errno.h>
 #include <assert.h>
 #include <event.h>
-#include <event2/event.h>
 #include <event2/bufferevent.h>
 #include <event2/listener.h>
 #include <event2/util.h>
-#include <thread>
+#include <event2/event.h>
+#include <string>
 
-#define SERVER_PORT 5555
+using namespace std;
 
-#define CONNECTION_BACKLOG 8
-
-#define SOCKET_READ_TIMEOUT_SECONDS 10
-
-#define SOCKET_WRITE_TIMEOUT_SECONDS 10
-
-#define NUM_THREADS 8
-
-#pragma comment (lib, "Ws2_32.lib")
-
-//struct mPoint
-//{
-//	int x; 
-//	int y;
-//};
+#define PORT 5555
 
 // Message
-//struct uMsg
-//{
-//	int type;
-//	//char name[64];
-//	char text[512]; // text msg
-//	//mPoint *m_point;
-//};
-
-// Client
-//struct clientInfo 
-//{
-//	evutil_socket_t fd;
-//	sockaddr_in saddr;
-//	uMsg msg;
-//};
-
-typedef struct userClientNode
+struct uMsg
 {
-	evutil_socket_t fd;
+	int type;
+	int x;
+	int y;
+	int z;
+};
 
-	struct event_base *evbase;
-
-	struct bufferevent *buf_ev;
-
-	struct evbuffer *output_buffer;
-
+struct userClientNode
+{
+	int fd;
+	string client_ip;
+	struct bufferevent *bev;
+	//struct uMsg *clientInfo;
 	userClientNode *next;
-
-} *ucnode_t;
-
-
-//// client chain node
-//typedef struct userClientNode
-//{
-//	client cInfo;
-//	userClientNode *next;
-//} *ucnode_t;
+};
 
 userClientNode *listHead;
-userClientNode *lp;
-
-static struct event_base *evbase_accept;
-
-static char g_szReadMsg[256] = { 0 };
-
-
 
 // Insert Client to chain
-userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_base *evbase, struct bufferevent *buf_ev, struct evbuffer *output_buffer)
+userClientNode *insertNode(userClientNode *head, SOCKET client, struct bufferevent *buf_ev, string ip)
 {
 	userClientNode *newNode = new userClientNode();
 	newNode->fd = client;
-	newNode->evbase = evbase;
-	newNode->buf_ev = buf_ev;
-	newNode->output_buffer = output_buffer;
+	newNode->bev = buf_ev;
+	newNode->client_ip = ip;
+	newNode->next = NULL;
 	userClientNode *p = head;
 
-	if (p == nullptr)
-	{	
+	if (p == NULL)
+	{
 		head = newNode;
 	}
-	else {
-		while (p->next != nullptr)
+	else
+	{
+		while (p->next != NULL)
 		{
 			p = p->next;
 		}
@@ -112,7 +66,7 @@ userClientNode *insertNode(userClientNode *head, SOCKET client, struct event_bas
 userClientNode *deleteNode(userClientNode *head, SOCKET client)
 {
 	userClientNode *p = head;
-	if (p == nullptr) 
+	if (p == nullptr)
 	{
 		return head;
 	}
@@ -141,220 +95,235 @@ userClientNode *deleteNode(userClientNode *head, SOCKET client)
 }
 
 
-static void closeClient(userClientNode *cli)
+const char ip_address[] = "127.0.0.1";
+
+void listener_cb(struct evconnlistener *bev, evutil_socket_t,
+	struct sockaddr *, int socklen, void *);
+void conn_readcb(struct bufferevent *bev, void *);
+void conn_eventcb(struct bufferevent *bev, short, void *);
+void newUserOnline(userClientNode *node);
+
+
+//void conn_writecb(struct bufferevent *bev, void *);
+//unsigned int get_client_id(struct bufferevent *bev);
+//void readHeader(struct bufferevent * bev, struct uMsg* msg);
+
+
+int main()
 {
-	if (cli != NULL) {
-		if (cli->fd >= 0) {
-			evutil_closesocket(cli->fd);
-			cli->fd = -1;
-		}
+	WSAData wsaData;
+	WSAStartup(MAKEWORD(2, 0), &wsaData);
+
+	cout << "Server begin running!" << endl;
+	struct sockaddr_in sin;
+	memset(&sin, 0, sizeof(sin));
+	sin.sin_family = AF_INET;
+	sin.sin_addr.s_addr = INADDR_ANY;
+	sin.sin_port = htons(PORT);
+
+	struct evconnlistener *listener;
+	struct event_base *base = event_base_new();
+	if (!base) {
+		cout << "Could not initialize libevent" << endl;
+		return 1;
 	}
+	//默认情况下，链接监听器接收新套接字后，会将其设置为非阻塞的
+	listener = evconnlistener_new_bind(base, listener_cb, (void *)base,
+		LEV_OPT_REUSEABLE | LEV_OPT_CLOSE_ON_FREE, -1,
+		(struct sockaddr*)&sin,
+		sizeof(sin));
+
+	if (!listener) {
+		cout << "Could not create a listener" << endl;
+		return 1;
+	}
+
+	// Init client list
+	//listHead = new userClientNode();
+	listHead = NULL;
+
+	event_base_dispatch(base);
+	evconnlistener_free(listener);
+	event_base_free(base);
+
+	return 0;
 }
 
-void buffered_on_read(struct bufferevent *bev, void *arg) 
+void listener_cb(struct evconnlistener *listener,
+	evutil_socket_t fd,
+	struct sockaddr *sa,
+	int socklen,
+	void *user_data)
 {
-	struct userClientNode *this_client = (struct userClientNode *)arg;
-	uint8_t data[8192];
-	size_t n;
+	cout << "Detect an connection" << endl;
+	// Get ip address
+	struct sockaddr_in * client_addr = (struct sockaddr_in *)sa;
+	char sendBuf[20] = { '\0' };
+	inet_ntop(AF_INET, (void*)&client_addr->sin_addr, sendBuf, 16);
+	string cli_addr = sendBuf;
+	printf("Accepted connection from: %s \n", cli_addr);
 
-	memset(g_szReadMsg, 0x00, sizeof(g_szReadMsg));
-	struct evbuffer *input = bufferevent_get_input(bev);
-	size_t sz = evbuffer_get_length(input);
+	struct event_base *base = (struct event_base *)user_data;
+	struct bufferevent *bev;
 
-	if (sz > 0)
-	{
-		bufferevent_read(bev, g_szReadMsg, sz);
-		printf("ser:>>%s\n", g_szReadMsg);
-	}
-}
-
-void buffered_on_write(struct bufferevent *bev, void *arg) 
-{
-
-}
-
-void buffered_on_error(struct bufferevent *bev, short event, void *arg) 
-{
-	evutil_socket_t fd = bufferevent_getfd(bev);
-	printf("fd = %u, ", fd);
-	struct userClientNode *cli = (struct userClientNode *)arg;
-	if (event & BEV_EVENT_TIMEOUT) 
-	{
-		printf("Timed out\n"); //if bufferevent_set_timeouts() called
-	}
-	else if (event & BEV_EVENT_EOF) 
-	{
-		printf("connection closed\n");
-	}
-	else if (event & BEV_EVENT_ERROR) 
-	{
-		printf("some other error\n");
-	}
-
-	bufferevent_free(cli->buf_ev);
-	// Delete node from queue
-	deleteNode(listHead, cli->fd);
-
-	closeClient(cli);
-	evbase_accept = NULL;
-	free(cli);
-}
- 
-
-// Ready to be accept
-void on_accept(evutil_socket_t fd, short ev, void *arg)
-{
-	struct event_base *base = (struct event_base *)arg;
-	evutil_socket_t client_fd;
-	struct sockaddr_in client_addr;
-	socklen_t client_len = sizeof(client_addr);
-
-	
-	client_fd = accept(fd, (struct sockaddr *)&client_addr, &client_len);
-	if (client_fd < 0)
-	{
-		perror("accept failed");
-		return;
-	}
-
-	if (evutil_make_socket_nonblocking(client_fd) < 0)
+	if (evutil_make_socket_nonblocking(fd) < 0)
 	{
 		perror("failed to set client socket to non-blocking");
 		return;
 	}
 
+	//BEV_OPT_CLOSE_ON_FREE close the file descriptor when this bufferevent is freed
+	bev = bufferevent_socket_new(base, fd, BEV_OPT_CLOSE_ON_FREE);
+	if (!bev) {
+		cout << "Could not create a bufferevent" << endl;
+		event_base_loopbreak(base);
+		return;
+	}
+
 	// Create a client object
 	userClientNode *cInfo = new userClientNode();
-	int len_client = sizeof(sockaddr);
 	if (cInfo == NULL)
 	{
 		perror("failed to allocate memory for client state");
-		evutil_closesocket(client_fd);
+		evutil_closesocket(fd);
 		return;
 	}
 
-	cInfo->fd = client_fd;
+	cInfo->fd = fd;
+	cInfo->client_ip = sendBuf;
+	cInfo->bev = bev;
 
-	printf("Accepted connection from: fd = %u\n", cInfo->fd);
+	// Set read write event
+	bufferevent_setcb(bev, conn_readcb, NULL, conn_eventcb, cInfo);
+	bufferevent_enable(bev, EV_READ | EV_WRITE);
 
-	if ((cInfo->output_buffer = evbuffer_new()) == NULL) {
-		perror("client output buffer allocation failed");
-		//closeAndFreeClient(client);
-		return;
-	}
+	// Insert node to client list 
+	listHead = insertNode(listHead, cInfo->fd, cInfo->bev, cInfo->client_ip);
 
+	// Notify new client enter room
+	newUserOnline(cInfo);
+}
 
-	if ((cInfo->evbase = event_base_new()) == NULL) {
-		perror("client event_base creation failed");
-		//closeAndFreeClient(client);
-		return;
-	}
+void newUserOnline(userClientNode *node)
+{
+	// Revise list and send new client ip to old connected clients, also send old connected 
+	// clients ip to new client
+	userClientNode *newNode = node;
+	userClientNode *curr = listHead;
 
-	// Create buffer event 
-	struct bufferevent *bev = bufferevent_socket_new(base, cInfo->fd, BEV_OPT_CLOSE_ON_FREE);
-	if (bev == NULL)
+	if (curr == NULL)
 	{
-		perror("client bufferevent creation failed");
 		return;
 	}
-	bufferevent_setcb(bev, buffered_on_read, buffered_on_write, buffered_on_error, arg);
-	cInfo->buf_ev = bev;
-	bufferevent_base_set(cInfo->evbase, cInfo->buf_ev);
-	bufferevent_settimeout(cInfo->buf_ev, SOCKET_READ_TIMEOUT_SECONDS, SOCKET_WRITE_TIMEOUT_SECONDS);
-	bufferevent_enable(cInfo->buf_ev, EV_READ | EV_WRITE | EV_PERSIST);
 
-	insertNode(listHead, cInfo->fd, cInfo->evbase, cInfo->buf_ev, cInfo->output_buffer);
-
-	// send a message to client when connect is succeeded
-	char send_msg[1024] = { 0 };
-	std::string msg = "connected";
-	//char *ptr = send_msg;
-	//memcpy(ptr, msg.c_str(), msg.size);
-	int len = msg.size();
-	int result = bufferevent_write(bev, msg.c_str(), len);
-	if (result < 0) 
+	while (curr != NULL)
 	{
-		perror("Server send error");
+		userClientNode *oldNode = curr;
+		if (oldNode->client_ip == "" || oldNode->fd == node->fd)
+		{
+			curr = curr->next;
+			continue;
+		}
+
+		// Old client ip
+		const char *oldIp = oldNode->client_ip.c_str();
+		// New client ip
+		const char *newIp = newNode->client_ip.c_str();
+
+		// Message length
+		uint32_t len = 0;
+		len = strlen(oldIp);
+		//len = htonl(len);
+
+		// if type == 200, represent new user online
+		int type = 200;
+		bufferevent_write(node->bev, (char*)&type, sizeof(int));
+		bufferevent_write(node->bev, (char*)&len, sizeof(int));
+		bufferevent_write(node->bev, oldIp, strlen(oldIp));
+
+		len = strlen(newIp);
+		//len = htonl(len);
+		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
+		bufferevent_write(oldNode->bev, (char*)&len, sizeof(int));
+		bufferevent_write(oldNode->bev, newIp, strlen(newIp));
+
+		curr = curr->next;
 	}
 }
 
-int runServer() {
-	std::cout << "I am the server" << std::endl;
+// Recv message from client
+void conn_readcb(struct bufferevent *bev, void *arg) {
 
-	WSADATA wsaData;
-	if (WSAStartup(MAKEWORD(2, 2), &wsaData)) {
-		std::cout << "WSAStartup failed :" << GetLastError() << std::endl;
+	struct userClientInfo *this_client = (userClientInfo *)arg;
+
+	struct evbuffer *input = bufferevent_get_input(bev);
+	size_t sz = evbuffer_get_length(input);
+	evutil_socket_t client_fd = bufferevent_getfd(bev);
+
+	uMsg *msg = new uMsg;
+	int type = 0, x, y, z;
+	int readSize = 0;
+	readSize += bufferevent_read(bev, &type, sizeof(int));
+	if (readSize == 4)
+	{
+		//获得有效数据的大小
+		msg->type = type;
+	}
+	readSize += bufferevent_read(bev, &x, sizeof(int));
+	if (readSize == 8)
+	{
+		//获得有效数据的大小
+		msg->x = x;
+	}
+	readSize += bufferevent_read(bev, &y, sizeof(int));
+	if (readSize == 12)
+	{
+		//获得有效数据的大小
+		msg->y = y;
+	}
+	readSize += bufferevent_read(bev, &z, sizeof(int));
+	if (readSize == 16)
+	{
+		//获得有效数据的大小
+		msg->z = z;
 	}
 
-	int listenfd;
-	struct sockaddr_in listen_addr;
-	struct event * ev_accept;
+	printf("坐标：%u:%u:%u \n", msg->x, msg->y, msg->z);
 
-	// Initialize the queue
-	listHead = new userClientNode();
-	listHead->next = nullptr;
-	lp = listHead;
-
-	// Create our listening socket 
-	listenfd = socket(AF_INET, SOCK_STREAM, 0);
-	if (listenfd < 0) {
-		std::cout << "listen failed: " << GetLastError() << std::endl;
-		return 1;
+	// Broadcast to other client 
+	userClientNode *curr = listHead;
+	while (curr != NULL)
+	{
+		if (curr->fd != client_fd)
+		{
+			if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
+			{
+				cout << "server write error" << endl;
+			}
+		}
+		curr = curr->next;
 	}
-
-	evutil_make_listen_socket_reuseable(listenfd);
-
-	memset(&listen_addr, 0, sizeof(listen_addr));
-	listen_addr.sin_family = AF_INET;
-	listen_addr.sin_addr.s_addr = INADDR_ANY;
-	listen_addr.sin_port = htons(SERVER_PORT);
-
-	if (bind(listenfd, (struct sockaddr *)&listen_addr, sizeof(listen_addr)) < 0) {
-		perror("bind failed");
-		return 1;
-	}
-
-	if (listen(listenfd, CONNECTION_BACKLOG) < 0) {
-		perror("listen failed:" );
-		std::cout << "listen failed: " << GetLastError() << std::endl;
-
-		return 1;
-	} 
-
-	printf("Listening.... \n");
-
-	if (evutil_make_socket_nonblocking(listenfd) < 0) {
-		perror("failed to set server socket to non-blocking");
-		return 1;
-	}
-	
-	if ((evbase_accept = event_base_new()) == NULL) {
-		perror("Unable to create socket accept event base");
-		evutil_closesocket(listenfd);
-		return 1;
-	}
-
-	printf("Server running. \n");
-
-	ev_accept = event_new(evbase_accept, listenfd, EV_READ | EV_PERSIST, on_accept, (void*)evbase_accept);
-	event_add(ev_accept, NULL);
-
-	// Start the event loop
-	event_base_dispatch(evbase_accept);
-	
-	return 0;
 }
 
 
-void killServer() {
-	fprintf(stdout, "Stopping socket listener event loop.\n");
-	if (event_base_loopexit(evbase_accept, NULL) < 0) {
-		perror("Error shutting down server");
+void conn_eventcb(struct bufferevent *bev, short events, void *arg) {
+	if (events & BEV_EVENT_EOF) {
+		cout << "Connection closed" << endl;
 	}
-	fprintf(stdout, "Stopping workers.\n");
-}
+	else if (events & BEV_EVENT_ERROR) {
+		cout << "Got an error on the connection: " << endl;
+	}
+	else if (events & BEV_EVENT_TIMEOUT)
+	{
+		cout << "Time out\n" << endl;
+	}
 
+	evutil_socket_t fd = bufferevent_getfd(bev);
+	userClientNode *cli = (userClientNode *)arg;
+	bufferevent_free(cli->bev);
+	listHead = deleteNode(listHead, cli->fd);
 
-int main() {
-	return runServer();
+	evutil_closesocket(cli->fd);
+	cli->fd = -1;
+	free(cli);
 }
