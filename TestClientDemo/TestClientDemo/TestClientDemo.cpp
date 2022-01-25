@@ -27,6 +27,7 @@ struct mPoint
 // Message
 struct uMsg
 {
+	int len;
 	int type;
 	int x;
 	int y;
@@ -59,20 +60,20 @@ struct uMsg
 void recvMessage()
 {
 	while (1) {
-		int type;
-		size_t sz = recv(client, (char *)&type, sizeof(int), 0);
+		int length;
+		size_t sz = recv(client, (char *)&length, sizeof(int), 0);
 		if (sz <= 0)
-		{	
+		{
 			std::cout << "recv failed: " << GetLastError() << std::endl;
 			break;
 		}
-
+		int type;
+		size_t result = recv(client, (char *)&type, sizeof(int), 0);
 		// 新用户上线
 		if (type == 200)
 		{
 			int len = 0;
-			recv(client, (char *)&len, sizeof(int), 0);
-			char *buf = new char(len + 1);
+			char *buf = new char(length - 4 + 1);
 			recv(client, buf, len, 0);
 			buf[len] = '\0';
 			printf("新用户 ip 地址: %s\n", buf);
@@ -112,7 +113,7 @@ int main()
 	WSADATA wsaData;
 
 	int iResult = WSAStartup(MAKEWORD(2, 2), &wsaData);
-	if (iResult != NO_ERROR) 
+	if (iResult != NO_ERROR)
 	{
 		std::cout << "WSAStartup Failed with error: " << iResult << std::endl;
 		return 1;
@@ -134,7 +135,7 @@ int main()
 
 	std::cout << "Connecting..." << std::endl;
 	iResult = connect(client, (SOCKADDR *)&addrServer, sizeof(addrServer));
-	if (iResult == SOCKET_ERROR) 
+	if (iResult == SOCKET_ERROR)
 	{
 		closesocket(client);
 		std::cout << "Unable to connect to server: " << WSAGetLastError() << std::endl;
@@ -179,6 +180,7 @@ int main()
 		//}
 
 		uMsg msg;
+		msg.len = 16;
 		msg.type = 201;
 		msg.x = inc;
 		msg.y = inc;

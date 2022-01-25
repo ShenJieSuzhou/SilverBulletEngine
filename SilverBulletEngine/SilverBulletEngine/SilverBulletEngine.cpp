@@ -19,10 +19,13 @@ using namespace std;
 // Message
 struct uMsg
 {
+	int len;
+	int accLen;
+	string account;
 	int type;
-	int x;
-	int y;
-	int z;
+	float x;
+	float y;
+	float z;
 };
 
 struct userClientNode
@@ -233,18 +236,19 @@ void newUserOnline(userClientNode *node)
 		// Message length
 		uint32_t len = 0;
 		len = strlen(oldIp);
-		//len = htonl(len);
 
 		// if type == 200, represent new user online
 		int type = 200;
-		bufferevent_write(node->bev, (char*)&type, sizeof(int));
+		len = htonl(len + 4);
+		type = htonl(type);
 		bufferevent_write(node->bev, (char*)&len, sizeof(int));
+		bufferevent_write(node->bev, (char*)&type, sizeof(int));
 		bufferevent_write(node->bev, oldIp, strlen(oldIp));
 
 		len = strlen(newIp);
-		//len = htonl(len);
-		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
+		len = htonl(len + 4);
 		bufferevent_write(oldNode->bev, (char*)&len, sizeof(int));
+		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
 		bufferevent_write(oldNode->bev, newIp, strlen(newIp));
 
 		curr = curr->next;
@@ -261,34 +265,48 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	evutil_socket_t client_fd = bufferevent_getfd(bev);
 
 	uMsg *msg = new uMsg;
-	int type = 0, x, y, z;
+	int type = 0, len, accID;
+	float x, y, z;
 	int readSize = 0;
-	readSize += bufferevent_read(bev, &type, sizeof(int));
+	readSize += bufferevent_read(bev, &len, sizeof(INT32));
 	if (readSize == 4)
 	{
 		//获得有效数据的大小
-		msg->type = type;
+		msg->len = htonl(len);
 	}
-	readSize += bufferevent_read(bev, &x, sizeof(int));
+	readSize += bufferevent_read(bev, &accID, sizeof(int));
 	if (readSize == 8)
 	{
 		//获得有效数据的大小
-		msg->x = x;
-	}
-	readSize += bufferevent_read(bev, &y, sizeof(int));
-	if (readSize == 12)
-	{
-		//获得有效数据的大小
-		msg->y = y;
-	}
-	readSize += bufferevent_read(bev, &z, sizeof(int));
-	if (readSize == 16)
-	{
-		//获得有效数据的大小
-		msg->z = z;
+		msg->accLen= htonl(accID);
 	}
 
-	printf("坐标：%u:%u:%u \n", msg->x, msg->y, msg->z);
+	readSize += bufferevent_read(bev, &type, sizeof(int));
+	if (readSize == (12))
+	{
+		//获得有效数据的大小
+		msg->type = htonl(type);
+	}
+	readSize += bufferevent_read(bev, &x, sizeof(float));
+	if (readSize == (20))
+	{
+		//获得有效数据的大小
+		msg->x = htonl(x);
+	}
+	readSize += bufferevent_read(bev, &y, sizeof(float));
+	if (readSize == 28)
+	{
+		//获得有效数据的大小
+		msg->y = htonl(y);
+	}
+	readSize += bufferevent_read(bev, &z, sizeof(float));
+	if (readSize == 36)
+	{
+		//获得有效数据的大小
+		msg->z = htonl(z);
+	}
+
+	printf("len: %u  坐标：%u:%u:%u \n", len, x, y, z);
 
 	// Broadcast to other client 
 	userClientNode *curr = listHead;
@@ -296,10 +314,23 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	{
 		if (curr->fd != client_fd)
 		{
-			if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
-			{
-				cout << "server write error" << endl;
-			}
+			//if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
+			//{
+			//	cout << "server write error" << endl;
+			//}
+			len = htonl(len);
+			type = htonl(type);
+			x = htonl(x);
+			y = htonl(y);
+			z = htonl(z);
+
+			bufferevent_write(curr->bev, (char*)&len, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&accID, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&x, sizeof(float));
+			bufferevent_write(curr->bev, (char*)&y, sizeof(float));
+			bufferevent_write(curr->bev, (char*)&z, sizeof(float));
+
 		}
 		curr = curr->next;
 	}
