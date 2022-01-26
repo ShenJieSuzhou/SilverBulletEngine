@@ -265,75 +265,88 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	evutil_socket_t client_fd = bufferevent_getfd(bev);
 
 	uMsg *msg = new uMsg;
-	int type = 0, len, accID;
-	float x, y, z;
+	int type = 0, len, accID, uuid, accLen;
+	float x, y;
 	int readSize = 0;
-	readSize += bufferevent_read(bev, &len, sizeof(INT32));
-	if (readSize == 4)
-	{
-		//获得有效数据的大小
-		msg->len = htonl(len);
-	}
-	readSize += bufferevent_read(bev, &accID, sizeof(int));
-	if (readSize == 8)
-	{
-		//获得有效数据的大小
-		msg->accLen= htonl(accID);
-	}
-
+	readSize += bufferevent_read(bev, &len, sizeof(int));
+	//if (readSize == 4)
+	//{
+	//	//获得有效数据的大小
+	//	msg->len = htonl(len);
+	//}
 	readSize += bufferevent_read(bev, &type, sizeof(int));
-	if (readSize == (12))
-	{
+	//if (readSize == 8)
+	//{
+	//	//获得有效数据的大小
+	//	msg->accLen= htonl(accID);
+	//}
+	readSize += bufferevent_read(bev, &accID, sizeof(int));
+
+	readSize += bufferevent_read(bev, &accLen, sizeof(int));
+
+	char *buf = new char[accLen +1];
+	readSize += bufferevent_read(bev, buf, len);
+	buf[len] = '\0';
+	//if (readSize == 8 + len)
+	//{
 		//获得有效数据的大小
-		msg->type = htonl(type);
-	}
+		//msg->accLen = htonl(accID);
+	//}
+	//readSize += bufferevent_read(bev, &type, sizeof(int));
+	//if (readSize == (12))
+	//{
+	//	//获得有效数据的大小
+	//	msg->type = htonl(type);
+	//}
 	readSize += bufferevent_read(bev, &x, sizeof(float));
-	if (readSize == (20))
-	{
-		//获得有效数据的大小
-		msg->x = htonl(x);
-	}
+	//if (readSize == (20))
+	//{
+	//	//获得有效数据的大小
+	//	msg->x = htonl(x);
+	//}
 	readSize += bufferevent_read(bev, &y, sizeof(float));
-	if (readSize == 28)
-	{
-		//获得有效数据的大小
-		msg->y = htonl(y);
-	}
-	readSize += bufferevent_read(bev, &z, sizeof(float));
-	if (readSize == 36)
-	{
-		//获得有效数据的大小
-		msg->z = htonl(z);
-	}
+	//if (readSize == 28)
+	//{
+	//	//获得有效数据的大小
+	//	msg->y = htonl(y);
+	//}
+	//readSize += bufferevent_read(bev, &z, sizeof(float));
+	//if (readSize == 36)
+	//{
+	//	//获得有效数据的大小
+	//	msg->z = htonl(z);
+	//}
 
-	printf("len: %u  坐标：%u:%u:%u \n", len, x, y, z);
+	printf("len: %u  坐标：%u:%u \n", len, x, y);
 
-	// Broadcast to other client 
-	userClientNode *curr = listHead;
-	while (curr != NULL)
-	{
-		if (curr->fd != client_fd)
-		{
-			//if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
-			//{
-			//	cout << "server write error" << endl;
-			//}
-			len = htonl(len);
-			type = htonl(type);
-			x = htonl(x);
-			y = htonl(y);
-			z = htonl(z);
+	//// Broadcast to other client 
+	//userClientNode *curr = listHead;
+	//while (curr != NULL)
+	//{
+	//	if (curr->fd != client_fd)
+	//	{
+	//		//if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
+	//		//{
+	//		//	cout << "server write error" << endl;
+	//		//}
+	//		len = htonl(len);
+	//		type = htonl(type);
+	//		x = htonl(x);
+	//		y = htonl(y);
+	//		z = htonl(z);
 
-			bufferevent_write(curr->bev, (char*)&len, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&accID, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&type, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&x, sizeof(float));
-			bufferevent_write(curr->bev, (char*)&y, sizeof(float));
-			bufferevent_write(curr->bev, (char*)&z, sizeof(float));
+	//		bufferevent_write(curr->bev, (char*)&len, sizeof(int));
+	//		bufferevent_write(curr->bev, (char*)&accID, sizeof(int));
+	//		bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+	//		bufferevent_write(curr->bev, (char*)&x, sizeof(float));
+	//		bufferevent_write(curr->bev, (char*)&y, sizeof(float));
+	//		bufferevent_write(curr->bev, (char*)&z, sizeof(float));
 
-		}
-		curr = curr->next;
-	}
+	//	}
+	//	curr = curr->next;
+	//}
+	free(buf);
+	buf = NULL;
 }
 
 
