@@ -265,8 +265,8 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	evutil_socket_t client_fd = bufferevent_getfd(bev);
 
 	uMsg *msg = new uMsg;
-	int type = 0, len, accID, uuid, accLen;
-	float x, y;
+	int type = 0, len = 0, accID = 0, uuid = 0, accLen = 0;
+	double x = 0.0, y = 0.0;  
 	int readSize = 0;
 	readSize += bufferevent_read(bev, &len, sizeof(int));
 	//if (readSize == 4)
@@ -284,9 +284,9 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 
 	readSize += bufferevent_read(bev, &accLen, sizeof(int));
 
-	char *buf = new char[accLen +1];
-	readSize += bufferevent_read(bev, buf, len);
-	buf[len] = '\0';
+	char *buf = new char[accLen];
+	readSize += bufferevent_read(bev, buf, accLen);
+
 	//if (readSize == 8 + len)
 	//{
 		//获得有效数据的大小
@@ -298,13 +298,13 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	//	//获得有效数据的大小
 	//	msg->type = htonl(type);
 	//}
-	readSize += bufferevent_read(bev, &x, sizeof(float));
+	readSize += bufferevent_read(bev, &x, sizeof(double));
 	//if (readSize == (20))
 	//{
 	//	//获得有效数据的大小
 	//	msg->x = htonl(x);
 	//}
-	readSize += bufferevent_read(bev, &y, sizeof(float));
+	readSize += bufferevent_read(bev, &y, sizeof(double));
 	//if (readSize == 28)
 	//{
 	//	//获得有效数据的大小
@@ -317,7 +317,8 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	//	msg->z = htonl(z);
 	//}
 
-	printf("len: %u  坐标：%u:%u \n", len, x, y);
+
+	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, accID, buf, x, y);
 
 	//// Broadcast to other client 
 	//userClientNode *curr = listHead;
@@ -345,8 +346,14 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	//	}
 	//	curr = curr->next;
 	//}
-	free(buf);
-	buf = NULL;
+	
+	//for (int i = 0; i< accLen + 1; i++)
+	//{
+	//	delete &buf[i];
+	//}
+	
+	delete[] buf;
+	buf = nullptr;
 }
 
 
