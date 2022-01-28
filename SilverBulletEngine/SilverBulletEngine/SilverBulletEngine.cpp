@@ -284,9 +284,11 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 
 	readSize += bufferevent_read(bev, &accLen, sizeof(int));
 
-	char *buf = new char[accLen];
-	readSize += bufferevent_read(bev, buf, accLen);
-
+	int length = accLen;
+	char *account = new char[length + 1];
+	//char account[30] = { '\0' };
+	readSize += bufferevent_read(bev, account, length);
+	account[length] = '\0';
 	//if (readSize == 8 + len)
 	//{
 		//获得有效数据的大小
@@ -318,7 +320,7 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	//}
 
 
-	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, accID, buf, x, y);
+	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, accID, account, x, y);
 
 	//// Broadcast to other client 
 	//userClientNode *curr = listHead;
@@ -352,8 +354,8 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	//	delete &buf[i];
 	//}
 	
-	delete[] buf;
-	buf = nullptr;
+	delete[] account;
+	account = nullptr;
 }
 
 
