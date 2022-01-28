@@ -60,27 +60,45 @@ struct uMsg
 void recvMessage()
 {
 	while (1) {
-		int length;
-		size_t sz = recv(client, (char *)&length, sizeof(int), 0);
-		if (sz <= 0)
+		int length = 0;
+		size_t readSize = 0;
+		readSize = recv(client, (char *)&length, sizeof(int), 0);
+		length = htonl(length);
+		if (readSize <= 0)
 		{
 			std::cout << "recv failed: " << GetLastError() << std::endl;
 			break;
 		}
 		int type;
-		size_t result = recv(client, (char *)&type, sizeof(int), 0);
+		readSize += recv(client, (char *)&type, sizeof(int), 0);
 		// 新用户上线
+		type = htonl(type);
 		if (type == 200)
 		{
-			int len = 0;
-			char *buf = new char(length - 4 + 1);
-			recv(client, buf, len, 0);
-			buf[len] = '\0';
+			char *buf = new char(length+ 1);
+			readSize += recv(client, buf, length, 0);
+			buf[length] = '\0';
 			printf("新用户 ip 地址: %s\n", buf);
+			delete[] buf;
+			readSize = 0;
 		}
 		else if (type == 201)
 		{
+			int uuid = 0, accLen = 0;
+			readSize += recv(client, (char *)&uuid, sizeof(int), 0);
+			uuid = htonl(uuid);
+			readSize += recv(client, (char *)&accLen, sizeof(int), 0);
+			accLen = htonl(accLen);
+			char *account = new char[accLen + 1];
+			readSize += recv(client, (char *)&account, accLen, 0);
+			account[accLen] = '\0';
+
 			// 坐标
+			double x = 0.0, y = 0.0;
+			readSize += recv(client, (char *)&x, sizeof(double), 0);
+			readSize += recv(client, (char *)&y, sizeof(double), 0);
+			
+			printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", length, uuid, account, x, y);
 		}
 	}
 
@@ -191,7 +209,7 @@ int main()
 		//strcpy(msg.content, content.c_str());
 		//msg.content = content.c_str();
 		//msg.content = content.c_str();
-		send(client, (char*)&msg, sizeof(uMsg), 0);
+		//send(client, (char*)&msg, sizeof(uMsg), 0);
 		inc = inc + 1;
 
 		//char* buffer = new char[sizeof(uMsg)];

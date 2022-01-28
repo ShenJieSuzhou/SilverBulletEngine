@@ -239,14 +239,14 @@ void newUserOnline(userClientNode *node)
 
 		// if type == 200, represent new user online
 		int type = 200;
-		len = htonl(len + 4);
+		len = htonl(len);
 		type = htonl(type);
 		bufferevent_write(node->bev, (char*)&len, sizeof(int));
 		bufferevent_write(node->bev, (char*)&type, sizeof(int));
 		bufferevent_write(node->bev, oldIp, strlen(oldIp));
 
 		len = strlen(newIp);
-		len = htonl(len + 4);
+		len = htonl(len);
 		bufferevent_write(oldNode->bev, (char*)&len, sizeof(int));
 		bufferevent_write(oldNode->bev, (char*)&type, sizeof(int));
 		bufferevent_write(oldNode->bev, newIp, strlen(newIp));
@@ -264,96 +264,69 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	size_t sz = evbuffer_get_length(input);
 	evutil_socket_t client_fd = bufferevent_getfd(bev);
 
-	uMsg *msg = new uMsg;
-	int type = 0, len = 0, accID = 0, uuid = 0, accLen = 0;
+	int type = 0, len = 0, uuid = 0, accLen = 0;
 	double x = 0.0, y = 0.0;  
 	int readSize = 0;
 	readSize += bufferevent_read(bev, &len, sizeof(int));
 	//if (readSize == 4)
 	//{
 	//	//获得有效数据的大小
-	//	msg->len = htonl(len);
+	//	len = htonl(len);
 	//}
 	readSize += bufferevent_read(bev, &type, sizeof(int));
 	//if (readSize == 8)
 	//{
-	//	//获得有效数据的大小
-	//	msg->accLen= htonl(accID);
+	//	// 消息类型
+	//	type = htonl(type);
 	//}
-	readSize += bufferevent_read(bev, &accID, sizeof(int));
-
+	readSize += bufferevent_read(bev, &uuid, sizeof(int));
+	//if (readSize == 12)
+	//{
+	//	// uuid
+	//	uuid = htonl(uuid);
+	//}
 	readSize += bufferevent_read(bev, &accLen, sizeof(int));
-
-	int length = accLen;
-	char *account = new char[length + 1];
-	//char account[30] = { '\0' };
-	readSize += bufferevent_read(bev, account, length);
-	account[length] = '\0';
-	//if (readSize == 8 + len)
-	//{
-		//获得有效数据的大小
-		//msg->accLen = htonl(accID);
-	//}
-	//readSize += bufferevent_read(bev, &type, sizeof(int));
-	//if (readSize == (12))
-	//{
-	//	//获得有效数据的大小
-	//	msg->type = htonl(type);
-	//}
+	if (readSize == 16) {
+		// 账号长度
+		//accLen = htonl(accLen);
+	}
+	char *account = new char[accLen + 1];
+	readSize += bufferevent_read(bev, account, accLen);
+	if (readSize == (16 + accLen)) {
+		account[accLen] = '\0';
+	}
 	readSize += bufferevent_read(bev, &x, sizeof(double));
-	//if (readSize == (20))
-	//{
-	//	//获得有效数据的大小
-	//	msg->x = htonl(x);
-	//}
+	if (readSize == (24 + accLen))
+	{
+		// 获得 x 坐标
+		//x = htonl(x);
+	}
 	readSize += bufferevent_read(bev, &y, sizeof(double));
-	//if (readSize == 28)
-	//{
-	//	//获得有效数据的大小
-	//	msg->y = htonl(y);
-	//}
-	//readSize += bufferevent_read(bev, &z, sizeof(float));
-	//if (readSize == 36)
-	//{
-	//	//获得有效数据的大小
-	//	msg->z = htonl(z);
-	//}
+	if (readSize == (32 + accLen))
+	{
+		// 获得 y 坐标
+		//y = htonl(y);
+	}
 
+	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, uuid, account, x, y);
 
-	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, accID, account, x, y);
-
-	//// Broadcast to other client 
-	//userClientNode *curr = listHead;
-	//while (curr != NULL)
-	//{
-	//	if (curr->fd != client_fd)
-	//	{
-	//		//if (bufferevent_write(curr->bev, (char*)&msg, sizeof(uMsg)) < 0)
-	//		//{
-	//		//	cout << "server write error" << endl;
-	//		//}
-	//		len = htonl(len);
-	//		type = htonl(type);
-	//		x = htonl(x);
-	//		y = htonl(y);
-	//		z = htonl(z);
-
-	//		bufferevent_write(curr->bev, (char*)&len, sizeof(int));
-	//		bufferevent_write(curr->bev, (char*)&accID, sizeof(int));
-	//		bufferevent_write(curr->bev, (char*)&type, sizeof(int));
-	//		bufferevent_write(curr->bev, (char*)&x, sizeof(float));
-	//		bufferevent_write(curr->bev, (char*)&y, sizeof(float));
-	//		bufferevent_write(curr->bev, (char*)&z, sizeof(float));
-
-	//	}
-	//	curr = curr->next;
-	//}
-	
-	//for (int i = 0; i< accLen + 1; i++)
-	//{
-	//	delete &buf[i];
-	//}
-	
+	// Broadcast to other client 
+	userClientNode *curr = listHead;
+	while (curr != NULL)
+	{
+		if (curr->fd != client_fd)
+		{
+			bufferevent_write(curr->bev, (char*)&len, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&uuid, sizeof(int));
+			bufferevent_write(curr->bev, (char*)&accLen, sizeof(int));
+			bufferevent_write(curr->bev, account, accLen);
+			bufferevent_write(curr->bev, (char*)&x, sizeof(double));
+			bufferevent_write(curr->bev, (char*)&y, sizeof(double));
+		}
+		curr = curr->next;
+	}
+		
 	delete[] account;
 	account = nullptr;
 }
