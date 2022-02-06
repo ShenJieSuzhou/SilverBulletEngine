@@ -32,6 +32,7 @@ struct userClientNode
 {
 	int fd;
 	string client_ip;
+	string uuid;
 	struct bufferevent *bev;
 	//struct uMsg *clientInfo;
 	userClientNode *next;
@@ -203,7 +204,6 @@ void listener_cb(struct evconnlistener *listener,
 	// Insert node to client list 
 	listHead = insertNode(listHead, cInfo->fd, cInfo->bev, cInfo->client_ip);
 
-	// Notify new client enter room
 	newUserOnline(cInfo);
 }
 
@@ -257,87 +257,168 @@ void newUserOnline(userClientNode *node)
 
 // Recv message from client
 void conn_readcb(struct bufferevent *bev, void *arg) {
-
 	struct userClientInfo *this_client = (userClientInfo *)arg;
 
 	struct evbuffer *input = bufferevent_get_input(bev);
 	size_t sz = evbuffer_get_length(input);
 	evutil_socket_t client_fd = bufferevent_getfd(bev);
 
-	int type = 0, len = 0, uuid = 0, accLen = 0;
+	int type = 0, len = 0, uuidLen = 0, accLen = 0, color = 0;
 	double x = 0.0, y = 0.0;  
 	int readSize = 0;
+
 	readSize += bufferevent_read(bev, &len, sizeof(int));
-	//if (readSize == 4)
-	//{
-	//	//获得有效数据的大小
-	//	len = htonl(len);
-	//}
 	readSize += bufferevent_read(bev, &type, sizeof(int));
-	//if (readSize == 8)
-	//{
-	//	// 消息类型
-	//	type = htonl(type);
-	//}
-	readSize += bufferevent_read(bev, &uuid, sizeof(int));
-	//if (readSize == 12)
-	//{
-	//	// uuid
-	//	uuid = htonl(uuid);
-	//}
-	readSize += bufferevent_read(bev, &accLen, sizeof(int));
-	if (readSize == 16) {
+
+	// 新用户进入房间
+	if (type == 201)
+	{
+		readSize += bufferevent_read(bev, &uuidLen, sizeof(int));
+		char *uuid = new char[uuidLen + 1];
+		readSize += bufferevent_read(bev, uuid, uuidLen);
+		uuid[uuidLen] = '\0';
+
+		readSize += bufferevent_read(bev, &accLen, sizeof(int));
+
+		char *account = new char[accLen + 1];
+		readSize += bufferevent_read(bev, account, accLen);
+		account[accLen] = '\0';
+		
+		// color
+		readSize += bufferevent_read(bev, &color, sizeof(int));
+
+		len = htonl(len);
+		type = htonl(type);
+		uuidLen = htonl(uuidLen);
+		accLen = htonl(accLen);
+		color = htonl(color);
+
+		// Broadcast to other client 
+		userClientNode *curr = listHead;
+		while (curr != NULL)
+		{
+			if (curr->fd != client_fd)
+			{
+				bufferevent_write(curr->bev, (char*)&len, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&uuidLen, sizeof(int));
+				bufferevent_write(curr->bev, uuid, strlen(uuid));
+				bufferevent_write(curr->bev, (char*)&accLen, sizeof(int));
+				bufferevent_write(curr->bev, account, strlen(account));
+				bufferevent_write(curr->bev, (char*)&color, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&x, sizeof(double));
+				bufferevent_write(curr->bev, (char*)&y, sizeof(double));
+			}
+			else 
+			{
+				curr->uuid = uuid;
+			}
+			curr = curr->next;
+		}
+
+		delete[] uuid;
+		uuid = nullptr;
+
+		delete[] account;
+		account = nullptr;
+	}
+	else if (type == 202)
+	{
+		readSize += bufferevent_read(bev, &uuidLen, sizeof(int));
+		char *uuid = new char[uuidLen + 1];
+		readSize += bufferevent_read(bev, uuid, uuidLen);
+		uuid[uuidLen] = '\0';
+		//if (readSize == 12)
+		//{
+		//	// uuid
+		//	uuid = htonl(uuid);
+		//}
+		readSize += bufferevent_read(bev, &accLen, sizeof(int));
+		//if (readSize == 16) {
 		// 账号长度
 		//accLen = htonl(accLen);
-	}
-	char *account = new char[accLen + 1];
-	readSize += bufferevent_read(bev, account, accLen);
-	if (readSize == (16 + accLen)) {
+		//}
+		char *account = new char[accLen + 1];
+		readSize += bufferevent_read(bev, account, accLen);
 		account[accLen] = '\0';
-	}
-	readSize += bufferevent_read(bev, &x, sizeof(double));
-	if (readSize == (24 + accLen))
-	{
-		// 获得 x 坐标
-		//x = htonl(x);
-	}
-	readSize += bufferevent_read(bev, &y, sizeof(double));
-	if (readSize == (32 + accLen))
-	{
-		// 获得 y 坐标
-		//y = htonl(y);
-	}
 
-	printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, uuid, account, x, y);
+		// color
+		readSize += bufferevent_read(bev, &color, sizeof(int));
 
-	// Broadcast to other client 
-	userClientNode *curr = listHead;
-	while (curr != NULL)
-	{
-		if (curr->fd != client_fd)
+		readSize += bufferevent_read(bev, &x, sizeof(double));
+		if (readSize == (24 + accLen))
 		{
-			bufferevent_write(curr->bev, (char*)&len, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&type, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&uuid, sizeof(int));
-			bufferevent_write(curr->bev, (char*)&accLen, sizeof(int));
-			bufferevent_write(curr->bev, account, accLen);
-			bufferevent_write(curr->bev, (char*)&x, sizeof(double));
-			bufferevent_write(curr->bev, (char*)&y, sizeof(double));
+			// 获得 x 坐标
+			//x = htonl(x);
 		}
-		curr = curr->next;
+		readSize += bufferevent_read(bev, &y, sizeof(double));
+		if (readSize == (32 + accLen))
+		{
+			// 获得 y 坐标
+			//y = htonl(y);
+		}
+
+		printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", len, uuid, account, x, y);
+
+		len = htonl(len);
+		type = htonl(type);
+		uuidLen = htonl(uuidLen);
+		accLen = htonl(accLen);
+		color = htonl(color);
+		// Broadcast to other client 
+		userClientNode *curr = listHead;
+		while (curr != NULL)
+		{
+			if (curr->fd != client_fd)
+			{
+				bufferevent_write(curr->bev, (char*)&len, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&uuidLen, sizeof(int));
+				bufferevent_write(curr->bev, uuid, strlen(uuid));
+				bufferevent_write(curr->bev, (char*)&accLen, sizeof(int));
+				bufferevent_write(curr->bev, account, strlen(account));
+				bufferevent_write(curr->bev, (char*)&color, sizeof(int));
+				bufferevent_write(curr->bev, (char*)&x, sizeof(double));
+				bufferevent_write(curr->bev, (char*)&y, sizeof(double));
+			}
+			curr = curr->next;
+		}
+
+		delete[] uuid;
+		uuid = nullptr;
+
+		delete[] account;
+		account = nullptr;
 	}
-		
-	delete[] account;
-	account = nullptr;
 }
 
 
 void conn_eventcb(struct bufferevent *bev, short events, void *arg) {
 	if (events & BEV_EVENT_EOF) {
 		cout << "Connection closed" << endl;
+
+		struct userClientInfo *this_client = (userClientInfo *)arg;
+		struct evbuffer *input = bufferevent_get_input(bev);
+		size_t sz = evbuffer_get_length(input);
+		evutil_socket_t client_fd = bufferevent_getfd(bev);
+		int type = 203;
+		type = htonl(type);
+		userClientNode *curr = listHead;
+		while (curr != NULL)
+		{
+			if ((curr->fd == client_fd) && strlen(curr->uuid.c_str()) > 0)
+			{
+				bufferevent_write(curr->bev, (char*)&type, sizeof(int));
+				int len = strlen(curr->uuid.c_str());
+				bufferevent_write(curr->bev, curr->uuid.c_str(), len);
+			}
+			curr = curr->next;
+		}
+
 	}
 	else if (events & BEV_EVENT_ERROR) {
 		cout << "Got an error on the connection: " << endl;
+
 	}
 	else if (events & BEV_EVENT_TIMEOUT)
 	{

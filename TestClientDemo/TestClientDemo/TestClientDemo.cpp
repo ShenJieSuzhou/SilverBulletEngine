@@ -75,30 +75,63 @@ void recvMessage()
 		type = htonl(type);
 		if (type == 200)
 		{
-			char *buf = new char(length+ 1);
+			//char *buf = new char(length+ 2);
+			char buf[255] = { 0 };
 			readSize += recv(client, buf, length, 0);
 			buf[length] = '\0';
 			printf("新用户 ip 地址: %s\n", buf);
-			delete[] buf;
+			//delete[] buf;
 			readSize = 0;
 		}
 		else if (type == 201)
 		{
-			int uuid = 0, accLen = 0;
-			readSize += recv(client, (char *)&uuid, sizeof(int), 0);
-			uuid = htonl(uuid);
+			int uuidLen = 0, accLen = 0;
+			readSize += recv(client, (char *)&uuidLen, sizeof(int), 0);
+			uuidLen = htonl(uuidLen);
+
+			char uuid[255] = { 0 };
+			readSize += recv(client, (char *)&uuid, uuidLen, 0);
+			uuid[uuidLen] = '\0';
+
 			readSize += recv(client, (char *)&accLen, sizeof(int), 0);
 			accLen = htonl(accLen);
-			char *account = new char[accLen + 1];
+			//char *account = new char[accLen + 1];
+			char account[255] = { 0 };
 			readSize += recv(client, (char *)&account, accLen, 0);
 			account[accLen] = '\0';
+
+			// 坐标
+			//double x = 0.0, y = 0.0;
+			//readSize += recv(client, (char *)&x, sizeof(double), 0);
+			//readSize += recv(client, (char *)&y, sizeof(double), 0);
+			
+			printf("total data length: %u  uuid: %s acc: %s \n", length, uuid, account);
+		}
+		else if (type == 202)
+		{
+			int uuidLen = 0, accLen = 0;
+			readSize += recv(client, (char *)&uuidLen, sizeof(int), 0);
+			uuidLen = htonl(uuidLen);
+			char uuid[255] = { 0 };
+			readSize += recv(client, (char *)&uuid, uuidLen, 0);
+			uuid[uuidLen] = '\0';
+
+			readSize += recv(client, (char *)&accLen, sizeof(int), 0);
+			accLen = htonl(accLen);
+			//char *account = new char[accLen + 1];
+			char account[255] = { 0 };
+			readSize += recv(client, (char *)&account, accLen, 0);
+			account[accLen] = '\0';
+
+			int color = 0;
+			readSize += recv(client, (char *)&color, sizeof(int), 0);
 
 			// 坐标
 			double x = 0.0, y = 0.0;
 			readSize += recv(client, (char *)&x, sizeof(double), 0);
 			readSize += recv(client, (char *)&y, sizeof(double), 0);
-			
-			printf("total data length: %u  uuid: %u acc: %s  坐标：%lf:%lf \n", length, uuid, account, x, y);
+
+			printf("total data length: %u  uuid: %s acc: %s  坐标：%lf:%lf \n", length, uuid, account, x, y);
 		}
 	}
 
