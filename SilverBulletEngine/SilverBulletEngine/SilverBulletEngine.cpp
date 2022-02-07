@@ -273,7 +273,9 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 	// 新用户进入房间
 	if (type == 201)
 	{
+
 		readSize += bufferevent_read(bev, &uuidLen, sizeof(int));
+
 		char *uuid = new char[uuidLen + 1];
 		readSize += bufferevent_read(bev, uuid, uuidLen);
 		uuid[uuidLen] = '\0';
@@ -306,8 +308,6 @@ void conn_readcb(struct bufferevent *bev, void *arg) {
 				bufferevent_write(curr->bev, (char*)&accLen, sizeof(int));
 				bufferevent_write(curr->bev, account, strlen(account));
 				bufferevent_write(curr->bev, (char*)&color, sizeof(int));
-				bufferevent_write(curr->bev, (char*)&x, sizeof(double));
-				bufferevent_write(curr->bev, (char*)&y, sizeof(double));
 			}
 			else 
 			{
